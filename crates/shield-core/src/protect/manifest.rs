@@ -170,6 +170,38 @@ pub(crate) fn add_memory_payload_metrics(apk_dir: &Path, identity: &CacheIdentit
     fs::write(manifest_path, result).context("写入内存预算元数据到 AndroidManifest.xml 失败")
 }
 
+/// 写入各 ABI 壳库的明文摘要，供运行时在加载原生库前比对。
+///
+/// 值为 `abi:hex` 以逗号连接，例如 `arm64-v8a:ab12…,armeabi-v7a:cd34…`。
+/// 该字段本身不构成机密性保证：能改写 APK 的攻击者同样能改这里的值，
+/// 它的作用是让「替换壳库但忘记同步摘要」这类改动在启动时立刻暴露。
+pub(crate) fn add_native_integrity(
+    apk_dir: &Path,
+    digests: &std::collections::BTreeMap<String, String>,
+) -> Result<()> {
+    if digests.is_empty() {
+        return Ok(());
+    }
+    let manifest_path = apk_dir.join("AndroidManifest.xml");
+    let content = fs::read_to_string(&manifest_path).context("读取 AndroidManifest.xml 失败")?;
+    const FIELD: &str = "dev.mocika.shield.NATIVE_INTEGRITY";
+    if content.contains(FIELD) {
+        anyhow::bail!("原 APK 已占用 Shellsmith 原生库完整性字段");
+    }
+    let value = digests
+        .iter()
+        .map(|(abi, digest)| format!("{abi}:{digest}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let close = content
+        .rfind("</application>")
+        .context("AndroidManifest.xml 中未找到 </application>")?;
+    let metadata =
+        format!("\n        <meta-data android:name=\"{FIELD}\" android:value=\"{value}\" />\n    ");
+    let result = format!("{}{}{}", &content[..close], metadata, &content[close..]);
+    fs::write(manifest_path, result).context("写入原生库完整性到 AndroidManifest.xml 失败")
+}
+
 fn find_tag_end(content: &str, start: usize) -> Option<usize> {
     let s = &content[start..];
     let mut in_quote: Option<u8> = None;
@@ -343,6 +375,43 @@ mod tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn native_integrity_writes_per_abi_digests() {
+        let dir = tempfile::tempdir().unwrap();
+        let manifest = r#"<manifest><application android:name="App"></application></manifest>"#;
+        fs::write(dir.path().join("AndroidManifest.xml"), manifest).unwrap();
+
+        let mut digests = std::collections::BTreeMap::new();
+        digests.insert("arm64-v8a".to_string(), "aabb".to_string());
+        digests.insert("armeabi-v7a".to_string(), "ccdd".to_string());
+        add_native_integrity(dir.path(), &digests).unwrap();
+
+        let result = fs::read_to_string(dir.path().join("AndroidManifest.xml")).unwrap();
+        assert!(result.contains("dev.mocika.shield.NATIVE_INTEGRITY"));
+        assert!(result.contains("arm64-v8a:aabb,armeabi-v7a:ccdd"));
+    }
+
+    #[test]
+    fn native_integrity_skips_empty_and_rejects_occupied_field() {
+        let dir = tempfile::tempdir().unwrap();
+        let manifest = r#"<manifest><application android:name="App"></application></manifest>"#;
+        fs::write(dir.path().join("AndroidManifest.xml"), manifest).unwrap();
+
+        // 空摘要不写入任何字段
+        add_native_integrity(dir.path(), &std::collections::BTreeMap::new()).unwrap();
+        let untouched = fs::read_to_string(dir.path().join("AndroidManifest.xml")).unwrap();
+        assert!(!untouched.contains("NATIVE_INTEGRITY"));
+
+        // 原 APK 已占用该字段时拒绝写入，避免覆盖既有值
+        let occupied = r#"<manifest><application>
+        <meta-data android:name="dev.mocika.shield.NATIVE_INTEGRITY" android:value="x" />
+        </application></manifest>"#;
+        fs::write(dir.path().join("AndroidManifest.xml"), occupied).unwrap();
+        let mut digests = std::collections::BTreeMap::new();
+        digests.insert("arm64-v8a".to_string(), "aabb".to_string());
+        assert!(add_native_integrity(dir.path(), &digests).is_err());
     }
 
     #[test]

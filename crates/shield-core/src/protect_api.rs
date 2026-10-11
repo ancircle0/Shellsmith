@@ -18,8 +18,8 @@ use crate::protect::{
     abi_filter::{remove_excluded, validate_exclusions},
     dex::process_dex,
     manifest::{
-        add_cache_identity, add_memory_payload_metrics, add_xop_pvm2_marker, modify_manifest,
-        read_native_lib_packaging_policy, NativeLibPackagingPolicy,
+        add_cache_identity, add_memory_payload_metrics, add_native_integrity, add_xop_pvm2_marker,
+        modify_manifest, read_native_lib_packaging_policy, NativeLibPackagingPolicy,
     },
     native_alias::verify_in_apk,
     resource_format::{
@@ -537,6 +537,7 @@ pub fn protect_apk(
         &opts.excluded_abis,
     )
     .map_err(|err| diagnosed(err, FailureCode::RuntimeInjectionFailed))?;
+    add_native_integrity(&apk_dir, &injected_runtime.shell_digests).map_err(ShieldError::from)?;
     print_success("Runtime库注入完成");
 
     emit_progress(&on_progress, &cancel, ProgressStep::Repack, "重打包APK")?;

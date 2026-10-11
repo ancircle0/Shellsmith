@@ -90,6 +90,9 @@ pub(crate) struct InjectedNativeRuntime {
     pub(crate) injected_abis: HashSet<String>,
     pub(crate) placeholder: String,
     pub(crate) canonical_file_name: String,
+    /// 各 ABI 下壳库的明文 SHA-256（小写十六进制）。壳库在打包中只改名不改字节，
+    /// 该摘要写入 manifest 后由运行时在加载前比对。
+    pub(crate) shell_digests: std::collections::BTreeMap<String, String>,
 }
 
 impl NativeAlias {

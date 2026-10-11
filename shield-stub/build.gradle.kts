@@ -6,6 +6,10 @@ val runtimeProfileEnabled = providers.environmentVariable("MOCIKA_RUNTIME_PROFIL
     .orNull == "1"
 val legacyByteArrayEnabled = providers.environmentVariable("MOCIKA_LEGACY_BYTE_ARRAY")
     .orNull == "1"
+// 原生库启动期完整性校验。默认关闭：开启后一旦构建期哈希与设备侧实际加载的
+// 库不一致会直接拒绝启动，需先在真实设备矩阵上验证后再于发布构建中打开。
+val nativeSelfCheckEnabled = providers.environmentVariable("MOCIKA_NATIVE_SELF_CHECK")
+    .orNull == "1"
 // CI 默认固定版本；本机验证可通过 MOCIKA_NDK_VERSION 选择已安装的兼容 NDK。
 val ndkVersionPinned = System.getenv("MOCIKA_NDK_VERSION") ?: "29.0.14206865"
 
@@ -28,6 +32,7 @@ android {
         buildConfigField("boolean", "DEBUG_LOGS", "true")
         buildConfigField("boolean", "RUNTIME_PROFILE", runtimeProfileEnabled.toString())
         buildConfigField("boolean", "LEGACY_BYTE_ARRAY", legacyByteArrayEnabled.toString())
+        buildConfigField("boolean", "NATIVE_SELF_CHECK", nativeSelfCheckEnabled.toString())
     }
 
     buildTypes {

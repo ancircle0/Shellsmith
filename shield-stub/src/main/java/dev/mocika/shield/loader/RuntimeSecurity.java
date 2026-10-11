@@ -23,6 +23,14 @@ final class RuntimeSecurity {
     }
 
     static void checkEnvironment(Context context) {
+        // 壳库完整性先于其余检查：开关关闭时该方法直接返回，不产生额外开销。
+        try {
+            NativeIntegrity.verify(context);
+        } catch (SecurityException e) {
+            throw e;
+        } catch (Exception e) {
+            Log.e(TAG, "S03", e);
+        }
         int signals = Ld.r();
         reportSuspect(signals);
         enforceSafe(shouldReject(signals, isStrictPolicy(context)));

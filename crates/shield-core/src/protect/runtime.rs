@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
@@ -35,6 +36,9 @@ pub(crate) fn inject_runtime(
     let alias = NativeAlias::generate(&original_native)?;
     let alias_file_name = alias.file_name();
     let mut injected_abis = HashSet::new();
+    // 壳库在打包过程中只改文件名、不改字节，因此这里按 ABI 记录其明文摘要，
+    // 供设备侧启动时比对；写入 manifest 的字段由运行时读取。
+    let mut shell_digests: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
@@ -68,8 +72,22 @@ pub(crate) fn inject_runtime(
             if let Some(p) = outpath.parent() {
                 fs::create_dir_all(p)?;
             }
-            let mut outfile = fs::File::create(&outpath)?;
-            std::io::copy(&mut file, &mut outfile)?;
+            if output_name != file_name {
+                // 壳库在打包中只改文件名、字节不变，此处顺带记录明文摘要，
+                // 供设备侧启动时比对（写入 manifest，见 add_native_integrity）。
+                let mut bytes = Vec::with_capacity(file.size() as usize);
+                file.read_to_end(&mut bytes)?;
+                if let Some(abi) = file_name.split('/').nth(1) {
+                    let mut hasher = Sha256::new();
+                    hasher.update(&bytes);
+                    shell_digests.insert(abi.to_string(), hex_lower(&hasher.finalize()));
+                }
+                let mut outfile = fs::File::create(&outpath)?;
+                outfile.write_all(&bytes)?;
+            } else {
+                let mut outfile = fs::File::create(&outpath)?;
+                std::io::copy(&mut file, &mut outfile)?;
+            }
         }
     }
 
@@ -168,7 +186,17 @@ pub(crate) fn inject_runtime(
         injected_abis,
         placeholder: protocol.placeholder,
         canonical_file_name: protocol.canonical_file_name,
+        shell_digests,
     })
+}
+
+/// 小写十六进制编码。仅用于写入 manifest 的可读摘要字段。
+fn hex_lower(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
 }
 
 #[derive(Debug)]
