@@ -3,12 +3,20 @@ package dev.mocika.shield.loader;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.util.Log;
 
 /** 负责在每次进程启动时执行环境安全检查，不参与 DEX 缓存与类加载。 */
 final class RuntimeSecurity {
 
+    private static final String TAG = "RuntimeSecurity";
+
     private static final int SIGNAL_ANTI_DEBUG = 1;
     private static final int SIGNAL_ROOT = 1 << 1;
+    /**
+     * 低置信可疑信号（Frida 端口监听、临时目录残留、Hook 映射名）。
+     * 部分定制 ROM 与加固测试机会产生假阳性，因此只记录不阻断。
+     */
+    private static final int SIGNAL_SUSPECT = 1 << 2;
     private static final String POLICY_KEY = "dev.mocika.shield.ENV_POLICY";
 
     private RuntimeSecurity() {
@@ -16,7 +24,15 @@ final class RuntimeSecurity {
 
     static void checkEnvironment(Context context) {
         int signals = Ld.r();
+        reportSuspect(signals);
         enforceSafe(shouldReject(signals, isStrictPolicy(context)));
+    }
+
+    /** 可疑信号写入日志供诊断，不改变启动结果。 */
+    private static void reportSuspect(int signals) {
+        if ((signals & SIGNAL_SUSPECT) != 0) {
+            Log.w(TAG, "S02");
+        }
     }
 
     static boolean shouldReject(int signals, boolean strict) {

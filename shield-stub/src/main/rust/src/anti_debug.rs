@@ -37,15 +37,20 @@ const FRIDA_FILE_SIGS: &[&str] = &[
 /// 仅匹配通用行为特征，不针对特定工具的版本。
 const HOOK_MAP_SIGS: &[&str] = &["xposed", "lsposed", "edxposed", "substrate"];
 
-/// 综合反调试检测入口。任一检测命中即返回 true。
-/// 检测顺序：TracerPid（最快，单次读取）→ maps 扫描 → 线程名扫描（兜底）。
+/// 高置信检测：命中即为确定的分析环境，可以阻断。
+///
+/// 只包含无法被普通应用误触的信号——TracerPid 与 Frida 库映射。
+/// `check()` 用于解密前的硬阻断，必须保持在这一档。
 pub fn check() -> bool {
-    check_tracer_pid()
-        || check_frida_maps()
-        || check_frida_threads()
-        || check_frida_ports()
-        || check_frida_files()
-        || check_hook_frameworks()
+    check_tracer_pid() || check_frida_maps() || check_frida_threads()
+}
+
+/// 低置信检测：命中表示可疑，但不作为拒绝启动的依据。
+///
+/// 端口监听、临时目录残留与 Hook 映射串在部分定制 ROM 与加固测试机上
+/// 可能出现假阳性，因此只上报给调用方记录，由策略层决定是否处置。
+pub fn check_suspect() -> bool {
+    check_frida_ports() || check_frida_files() || check_hook_frameworks()
 }
 
 /// 检测 ptrace 类调试器（Android Studio / IDA / lldb 等）。
