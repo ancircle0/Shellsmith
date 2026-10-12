@@ -111,7 +111,7 @@ if unzip -Z1 "$FINAL" | grep -q '/libmocikashield\.so$'; then
 fi
 
 DECODED="$WORK/output-decoded"
-java -jar "$ROOT/tools/apktool_3.0.1.jar" d "$FINAL" -o "$DECODED" -f --no-src >/dev/null
+java -jar "$ROOT/tools/apktool_3.0.3.jar" d "$FINAL" -o "$DECODED" -f --no-src >/dev/null
 grep -q 'android:extractNativeLibs="false"' "$DECODED/AndroidManifest.xml"
 grep -q 'android:enableOnBackInvokedCallback="true"' "$DECODED/AndroidManifest.xml"
 

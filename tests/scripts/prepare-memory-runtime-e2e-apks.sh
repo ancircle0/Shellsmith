@@ -58,7 +58,7 @@ create_budget_variant() {
     local decoded="$WORK/$name-decoded"
     local unsigned="$WORK/output-$name-unsigned.apk"
     local final="$WORK/output-$name-signed.apk"
-    java -jar "$ROOT/tools/apktool_3.0.1.jar" d "$source" -o "$decoded" -f --no-src >/dev/null
+    java -jar "$ROOT/tools/apktool_3.0.3.jar" d "$source" -o "$decoded" -f --no-src >/dev/null
     python3 - "$decoded/AndroidManifest.xml" "$payload_bytes" <<'PY'
 import pathlib
 import re
@@ -76,7 +76,7 @@ if count != 1:
     raise SystemExit(f"预算元数据替换数量异常：{count}")
 manifest.write_text(updated, encoding="utf-8")
 PY
-    java -jar "$ROOT/tools/apktool_3.0.1.jar" b "$decoded" -o "$unsigned" -f >/dev/null
+    java -jar "$ROOT/tools/apktool_3.0.3.jar" b "$decoded" -o "$unsigned" -f >/dev/null
     if [[ "$only_32_bit" == "1" ]]; then
         zip -d "$unsigned" 'lib/arm64-v8a/*' 'lib/x86_64/*' >/dev/null
     fi

@@ -86,7 +86,7 @@ shield protect [OPTIONS] --input <APK> --output <APK>
 1. 发布包路径：`bin/../lib/apktool.jar`、`bin/../resources/resources.zip`
 2. 用户数据目录（`ProjectDirs`）
 3. 系统数据目录（`/usr/local/share/mocika-shield/` 等）
-4. 开发环境路径：`tools/apktool_3.0.1.jar`、`shield-stub/build/outputs/resources/resources.zip`
+4. 开发环境路径：`tools/apktool_3.0.3.jar`、`shield-stub/build/outputs/resources/resources.zip`
 
 ### 2.2 protect 命令核心流程
 

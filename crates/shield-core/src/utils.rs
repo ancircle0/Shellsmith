@@ -386,7 +386,7 @@ pub fn find_apktool() -> Result<PathBuf> {
         }
     }
 
-    let dev = dev_project_root().join("tools/apktool_3.0.1.jar");
+    let dev = dev_project_root().join("tools/apktool_3.0.3.jar");
     if dev.exists() {
         return Ok(dev);
     }

@@ -142,8 +142,8 @@ package_cli() {
   chmod +x "$CLI_PKG_DIR/bin/shield"
 
   # 工具 JAR
-  if [[ -f "$ROOT/tools/apktool_3.0.1.jar" ]]; then
-    cp "$ROOT/tools/apktool_3.0.1.jar" "$CLI_PKG_DIR/lib/apktool.jar"
+  if [[ -f "$ROOT/tools/apktool_3.0.3.jar" ]]; then
+    cp "$ROOT/tools/apktool_3.0.3.jar" "$CLI_PKG_DIR/lib/apktool.jar"
   else
     warn "apktool.jar 未找到，请手动复制到 tools/ 目录"
   fi

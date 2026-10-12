@@ -43,8 +43,8 @@ echo "✓ shield -> release/bin/shield"
 echo "=> 复制工具..."
 
 # apktool.jar
-if [ -f "$PROJECT_ROOT/tools/apktool_3.0.1.jar" ]; then
-    cp "$PROJECT_ROOT/tools/apktool_3.0.1.jar" "$RELEASE_DIR/lib/apktool.jar"
+if [ -f "$PROJECT_ROOT/tools/apktool_3.0.3.jar" ]; then
+    cp "$PROJECT_ROOT/tools/apktool_3.0.3.jar" "$RELEASE_DIR/lib/apktool.jar"
     echo "✓ apktool.jar -> release/lib/"
 else
     echo "! 错误: apktool.jar 未找到"
