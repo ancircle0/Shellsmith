@@ -656,7 +656,11 @@ public class PackerMain {
                     "PAS2 encrypted assets but found no AssetManager.open callsites");
         }
         System.out.println("ASSETS_TRANSFORM_OK encrypted=" + assets.encrypted
-                + " skipped=" + assets.skipped + " callsites=" + callsites
+                + " skipped=" + assets.skipped
+                + " skipped_by_ext=" + assets.skippedByExtension
+                + " skipped_unreferenced=" + assets.skippedUnreferenced
+                + " skipped_dexopt=" + assets.skippedDexopt
+                + " callsites=" + callsites
                 + " java_assets=" + javaAssets.size()
                 + " native_assets=" + nativeAssets.size()
                 + " external_reader=" + (allowExternalReader ? 1 : 0));
@@ -1146,7 +1150,10 @@ public class PackerMain {
                 AssetsEncryptor.Result ar = AssetsEncryptor.encryptAll(unpack, assetsAesKey);
                 assetsEncrypted = ar.encrypted;
                 System.out.println("Assets encrypt: files=" + ar.encrypted
-                        + " skipped=" + ar.skipped);
+                        + " skipped=" + ar.skipped
+                        + " skipped_by_ext=" + ar.skippedByExtension
+                        + " skipped_unreferenced=" + ar.skippedUnreferenced
+                        + " skipped_dexopt=" + ar.skippedDexopt);
             }
 
             // Embed shell before config.json so bitcode_hmac.<abi> can be HMAC-covered.

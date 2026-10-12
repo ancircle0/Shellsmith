@@ -18,8 +18,8 @@ use crate::protect::{
     abi_filter::{remove_excluded, validate_exclusions},
     dex::process_dex,
     manifest::{
-        add_cache_identity, add_memory_payload_metrics, add_xop_pvm2_marker, modify_manifest,
-        read_native_lib_packaging_policy, NativeLibPackagingPolicy,
+        add_cache_identity, add_memory_payload_metrics, add_native_integrity, add_xop_pvm2_marker,
+        modify_manifest, read_native_lib_packaging_policy, NativeLibPackagingPolicy,
     },
     native_alias::verify_in_apk,
     resource_format::{
@@ -408,11 +408,14 @@ pub fn protect_apk(
             .map_err(ShieldError::from)?;
             restore_external_pas2_assets(&staged_external_assets).map_err(ShieldError::from)?;
             print_success(&format!(
-                "assets PAS2 分块加密完成：{} 个文件加密（Java {}、Native {}），{} 个兼容性跳过，{} 个 open/openFd 调用已重定向",
+                "assets PAS2 分块加密完成：{} 个文件加密（Java {}、Native {}），{} 个兼容性跳过（扩展名 {}、未引用 {}、dexopt {}），{} 个 open/openFd 调用已重定向",
                 assets.encrypted,
                 assets.java_assets,
                 assets.native_assets,
                 assets.skipped,
+                assets.skipped_by_ext,
+                assets.skipped_unreferenced,
+                assets.skipped_dexopt,
                 assets.callsites
             ));
             let native = crate::protect::xop_pvm2::transform_native_sos(
@@ -537,6 +540,7 @@ pub fn protect_apk(
         &opts.excluded_abis,
     )
     .map_err(|err| diagnosed(err, FailureCode::RuntimeInjectionFailed))?;
+    add_native_integrity(&apk_dir, &injected_runtime.shell_digests).map_err(ShieldError::from)?;
     print_success("Runtime库注入完成");
 
     emit_progress(&on_progress, &cancel, ProgressStep::Repack, "重打包APK")?;

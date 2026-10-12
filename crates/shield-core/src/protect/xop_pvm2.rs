@@ -64,6 +64,9 @@ pub(crate) struct ResourceIdTransformReport {
 pub(crate) struct AssetTransformReport {
     pub(crate) encrypted: usize,
     pub(crate) skipped: usize,
+    pub(crate) skipped_by_ext: usize,
+    pub(crate) skipped_unreferenced: usize,
+    pub(crate) skipped_dexopt: usize,
     pub(crate) callsites: usize,
     pub(crate) java_assets: usize,
     pub(crate) native_assets: usize,
@@ -221,25 +224,34 @@ pub(crate) fn transform_assets(
             &String::from_utf8_lossy(&output.stderr)
         ));
     }
-    let values = parse_key_values(
-        String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .find(|line| line.starts_with("ASSETS_TRANSFORM_OK"))
-            .context("Xop 未返回 PAS2 assets 报告")?,
-    );
-    let report = AssetTransformReport {
-        encrypted: required_usize(&values, "encrypted")?,
-        skipped: required_usize(&values, "skipped")?,
-        callsites: required_usize(&values, "callsites")?,
-        java_assets: required_usize(&values, "java_assets")?,
-        native_assets: required_usize(&values, "native_assets")?,
-    };
+    let report = parse_asset_report(&String::from_utf8_lossy(&output.stdout))?;
     verify_pas2_assets(apk_dir, report.encrypted)?;
     let plaintext_map = apk_dir.join("assets/protector/assets.map");
     if plaintext_map.exists() {
         fs::remove_file(&plaintext_map).context("删除 PAS2 明文路径索引失败")?;
     }
     Ok(report)
+}
+
+fn parse_asset_report(stdout: &str) -> Result<AssetTransformReport> {
+    let values = parse_key_values(
+        stdout
+            .lines()
+            .find(|line| line.starts_with("ASSETS_TRANSFORM_OK"))
+            .context("Xop 未返回 PAS2 assets 报告")?,
+    );
+    Ok(AssetTransformReport {
+        encrypted: required_usize(&values, "encrypted")?,
+        skipped: required_usize(&values, "skipped")?,
+        // 新字段只用于诊断；旧版外部 packer 没有它们时按零兼容，不能让
+        // 不影响产物的报告增强阻断原有 PAS2 链路。
+        skipped_by_ext: optional_usize(&values, "skipped_by_ext")?,
+        skipped_unreferenced: optional_usize(&values, "skipped_unreferenced")?,
+        skipped_dexopt: optional_usize(&values, "skipped_dexopt")?,
+        callsites: required_usize(&values, "callsites")?,
+        java_assets: required_usize(&values, "java_assets")?,
+        native_assets: required_usize(&values, "native_assets")?,
+    })
 }
 
 fn validate_resource_id_mapping(path: &Path) -> Result<usize> {
@@ -772,6 +784,14 @@ fn required_usize(values: &BTreeMap<String, String>, key: &str) -> Result<usize>
         .with_context(|| format!("Xop PVM2 报告缺少 {key}"))
 }
 
+fn optional_usize(values: &BTreeMap<String, String>, key: &str) -> Result<usize> {
+    values.get(key).map_or(Ok(0), |value| {
+        value
+            .parse()
+            .with_context(|| format!("Xop PVM2 报告中的 {key} 不是整数"))
+    })
+}
+
 fn transform_failure_message(stdout: &str, stderr: &str) -> String {
     if stdout.contains("selected zero methods") || stderr.contains("selected zero methods") {
         return "Xop PVM2 已匹配到业务类，但没有可转换的方法。构造器和静态初始化器不会转换；含当前不支持的 invoke-custom/polymorphic 指令、超过寄存器/代码大小上限或异常处理表无法映射的方法会被跳过。请改选包含普通自有业务逻辑的类前缀，或查看 PVM2 覆盖率报告"
@@ -1054,6 +1074,30 @@ mod tests {
         assert_eq!(report.skipped_budget, 1);
         assert_eq!(report.function_regions, 12);
         assert!(parse_native_so_report("NATIVE_SO_TRANSFORM_OK encrypted_files=1").is_err());
+    }
+
+    #[test]
+    fn parses_asset_skip_reasons() {
+        let report = parse_asset_report(
+            "ASSETS_TRANSFORM_OK encrypted=21 skipped=69 skipped_by_ext=23 skipped_unreferenced=45 skipped_dexopt=1 callsites=4 java_assets=18 native_assets=3 external_reader=0\n",
+        )
+        .unwrap();
+        assert_eq!(report.encrypted, 21);
+        assert_eq!(report.skipped, 69);
+        assert_eq!(report.skipped_by_ext, 23);
+        assert_eq!(report.skipped_unreferenced, 45);
+        assert_eq!(report.skipped_dexopt, 1);
+        assert_eq!(report.java_assets, 18);
+        assert_eq!(report.native_assets, 3);
+
+        let old = parse_asset_report(
+            "ASSETS_TRANSFORM_OK encrypted=1 skipped=2 callsites=1 java_assets=1 native_assets=0 external_reader=0",
+        )
+        .unwrap();
+        assert_eq!(old.skipped_by_ext, 0);
+        assert_eq!(old.skipped_unreferenced, 0);
+        assert_eq!(old.skipped_dexopt, 0);
+        assert!(parse_asset_report("ASSETS_TRANSFORM_OK encrypted=1").is_err());
     }
 
     #[test]

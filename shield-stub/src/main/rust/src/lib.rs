@@ -170,7 +170,9 @@ extern "C" fn f7(mut env: JNIEnv, _class: JClass, chunk: JByteArray) -> jobject 
     }
 }
 
-/// 每次进程启动的环境检查入口。位 0 表示反调试命中，位 1 表示高置信 Root 命中。
+/// 每次进程启动的环境检查入口。
+/// 位 0 表示高置信反调试命中（可阻断），位 1 表示高置信 Root 命中，
+/// 位 2 表示低置信可疑信号（端口/临时文件/Hook 映射，仅记录不阻断）。
 extern "C" fn f3(_env: JNIEnv, _class: JClass) -> jint {
     let mut signals = 0;
     if anti_debug::check() {
@@ -178,6 +180,9 @@ extern "C" fn f3(_env: JNIEnv, _class: JClass) -> jint {
     }
     if root_environment::check() {
         signals |= 2;
+    }
+    if anti_debug::check_suspect() {
+        signals |= 4;
     }
     signals
 }

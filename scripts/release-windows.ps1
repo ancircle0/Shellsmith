@@ -218,7 +218,7 @@ function Package-Cli {
 
     Copy-Item (Join-Path $Root "target\x86_64-pc-windows-msvc\release\shield.exe") "$pkgDir\bin\shield.exe"
 
-    $apktool = Join-Path $Root "tools\apktool_3.0.1.jar"
+    $apktool = Join-Path $Root "tools\apktool_3.0.3.jar"
     if (Test-Path $apktool) {
         Copy-Item $apktool "$pkgDir\lib\apktool.jar"
     } else {

@@ -49,7 +49,7 @@ NORMALIZED_INPUT="$TEMP_DIR/arouter-input-signed.apk"
 mkdir -p "$ORIGINAL_DIR" "$PROTECTED_DIR" "$SHARED_JAVA" "$ASSET_DIR"
 
 "$SIGNER" "$INPUT_APK" "$NORMALIZED_INPUT" >/dev/null
-java -jar "$ROOT_DIR/tools/apktool_3.0.1.jar" d "$NORMALIZED_INPUT" \
+java -jar "$ROOT_DIR/tools/apktool_3.0.3.jar" d "$NORMALIZED_INPUT" \
   -o "$ORIGINAL_DIR" -f --no-src >/dev/null
 ORIGINAL_APPLICATION="$(sed -n 's/.*<application[^>]*android:name="\([^"]*\)".*/\1/p' \
   "$ORIGINAL_DIR/AndroidManifest.xml" | head -1)"
@@ -63,7 +63,7 @@ fi
 cargo build --release -p shield-cli --manifest-path "$ROOT_DIR/Cargo.toml"
 "$ROOT_DIR/target/release/shield" protect --input "$NORMALIZED_INPUT" --output "$PROTECTED_UNSIGNED"
 "$SIGNER" "$PROTECTED_UNSIGNED" "$PROTECTED_SIGNED" >/dev/null
-java -jar "$ROOT_DIR/tools/apktool_3.0.1.jar" d "$PROTECTED_UNSIGNED" \
+java -jar "$ROOT_DIR/tools/apktool_3.0.3.jar" d "$PROTECTED_UNSIGNED" \
   -o "$PROTECTED_DIR" -f --no-src >/dev/null
 
 cp "$PROTECTED_DIR/classes.dex" "$ASSET_DIR/protected-payload.dex"
@@ -100,7 +100,7 @@ perl -0pi -e '
   </application>};
 ' "$MANIFEST"
 
-java -jar "$ROOT_DIR/tools/apktool_3.0.1.jar" b "$PROTECTED_DIR" \
+java -jar "$ROOT_DIR/tools/apktool_3.0.3.jar" b "$PROTECTED_DIR" \
   -o "$PROTOTYPE_UNSIGNED" >/dev/null
 "$SIGNER" "$PROTOTYPE_UNSIGNED" "$PROTOTYPE_SIGNED" >/dev/null
 java -jar "$ROOT_DIR/tools/apksigner.jar" verify --verbose "$PROTOTYPE_SIGNED" >/dev/null
@@ -109,7 +109,7 @@ perl -0pi -e '
   s{android:name="PROBE_CONCURRENT_CLASSES" android:value="[^"]*"}{android:name="PROBE_CONCURRENT_CLASSES" android:value="com.example.arouterdemo.LauncherActivity,com.example.arouterdemo.DemoApplication"};
   s{android:name="PROBE_AROUTER_ROUTE" android:value="[^"]*"}{android:name="PROBE_AROUTER_ROUTE" android:value=""};
 ' "$MANIFEST"
-java -jar "$ROOT_DIR/tools/apktool_3.0.1.jar" b "$PROTECTED_DIR" \
+java -jar "$ROOT_DIR/tools/apktool_3.0.3.jar" b "$PROTECTED_DIR" \
   -o "$PERFORMANCE_UNSIGNED" >/dev/null
 "$SIGNER" "$PERFORMANCE_UNSIGNED" "$PERFORMANCE_SIGNED" >/dev/null
 java -jar "$ROOT_DIR/tools/apksigner.jar" verify --verbose "$PERFORMANCE_SIGNED" >/dev/null
@@ -117,7 +117,7 @@ java -jar "$ROOT_DIR/tools/apksigner.jar" verify --verbose "$PERFORMANCE_SIGNED"
 perl -0pi -e '
   s{</application>}{<meta-data android:name="PROBE_MEMORY_METRICS" android:value="true"/></application>};
 ' "$MANIFEST"
-java -jar "$ROOT_DIR/tools/apktool_3.0.1.jar" b "$PROTECTED_DIR" \
+java -jar "$ROOT_DIR/tools/apktool_3.0.3.jar" b "$PROTECTED_DIR" \
   -o "$DIAGNOSTIC_UNSIGNED" >/dev/null
 "$SIGNER" "$DIAGNOSTIC_UNSIGNED" "$DIAGNOSTIC_SIGNED" >/dev/null
 java -jar "$ROOT_DIR/tools/apksigner.jar" verify --verbose "$DIAGNOSTIC_SIGNED" >/dev/null

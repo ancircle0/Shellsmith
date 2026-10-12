@@ -35,7 +35,8 @@
 │                        → DEXB v6 payload（签名绑定，IKM 包裹） │
 │  ⑤ inject_runtime     解压 resources.zip 注入 stub + .so；      │
 │                        DEXB payload 以 MSHD 块追加到            │
-│                        classes.dex 末尾（DEX file_size 之外）   │
+│                        classes.dex 原始 file_size 之后；       │
+│                        最终 file_size 更新为包含追加块的全长  │
 │  ⑥ apktool b + 内置对齐  重打包并执行 4 KB / 16 KB ZIP 对齐      │
 └──────────────────────────────┬──────────────────────────────────┘
                                │ protected.apk（未签名，需签名后安装）
@@ -86,7 +87,7 @@ shield protect [OPTIONS] --input <APK> --output <APK>
 1. 发布包路径：`bin/../lib/apktool.jar`、`bin/../resources/resources.zip`
 2. 用户数据目录（`ProjectDirs`）
 3. 系统数据目录（`/usr/local/share/mocika-shield/` 等）
-4. 开发环境路径：`tools/apktool_3.0.1.jar`、`shield-stub/build/outputs/resources/resources.zip`
+4. 开发环境路径：`tools/apktool_3.0.3.jar`、`shield-stub/build/outputs/resources/resources.zip`
 
 ### 2.2 protect 命令核心流程
 
@@ -171,7 +172,7 @@ metadata.json
 注入逻辑：
 1. 解压 `resources.zip` 到 APK 目录
 2. `stub-classes.dex` → 重命名为 `classes.dex`（占据主 dex 位置）
-3. **将 DEXB v6 加密数据以 MSHD 块格式追加到 `classes.dex` 末尾**（DEX `file_size` 之外，工具不可见）
+3. **将 DEXB v6 加密数据以 MSHD 块格式追加到 `classes.dex` 原始 `file_size` 之后**；随后修正 DEX header，使最终 `file_size` 包含追加块总长度。标准 DEX 结构仍由自身的 map/偏移关系界定，不能把载荷位置描述为“最终 `file_size` 之外”。
 4. 跳过所有含 `libzstd-jni` 的文件（Rust 静态链接了 zstd）
 
 #### 步骤 ⑥ 重打包
@@ -186,14 +187,16 @@ java -jar apktool.jar b <tmp/apk> -o <output.apk> -f
 
 ## 三、加密数据格式（DEXB v6，兼容 v5）
 
-加密 DEX 数据以 **MSHD 追加块**格式写在 `classes.dex` 文件末尾（DEX `file_size` 边界之外）。新构建默认使用 DEXB v6，运行时仍保留只读 v5 解析以支持迁移和回归：
+加密 DEX 数据以 **MSHD 追加块**格式写在 `classes.dex` 文件末尾，并位于原始 DEX `file_size` 边界之后。追加完成后，最终 DEX header 的 `file_size` 会包含整个 MSHD 块；新构建默认使用 DEXB v6，运行时仍保留只读 v5 解析以支持迁移和回归：
 
 ```
-[classes.dex 标准内容，工具解析至 file_size 边界后停止]
+[classes.dex 标准内容，原始 file_size 边界]
 ...
 MSHD            (4 bytes ASCII magic，用于 runtime 侧定位追加块起点)
 payload_len     (4 bytes u32 LE，不含 magic 和 payload_len 字段自身)
 <DEXB 加密数据> (payload_len bytes，DEXB v6 格式完整内容；v5 仅兼容读取)
+
+最终 DEX header 的 file_size = 上述标准内容 + MSHD 头部 + payload 的总长度。
 ```
 
 追加块内的新 **DEXB payload** 采用 **Version 6** 格式：

@@ -21,7 +21,7 @@ pub(crate) fn find_apktool_path(app: &tauri::AppHandle) -> Option<PathBuf> {
             return Some(p);
         }
     }
-    let dev = project_root_path().join("tools/apktool_3.0.1.jar");
+    let dev = project_root_path().join("tools/apktool_3.0.3.jar");
     if dev.exists() {
         return Some(dev);
     }

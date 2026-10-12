@@ -39,7 +39,7 @@
       "icons/icon.icns"
     ],
     "resources": {
-      "../../../tools/apktool_3.0.1.jar": "tools/apktool.jar",
+      "../../../tools/apktool_3.0.3.jar": "tools/apktool.jar",
       "../../../tools/apksigner.jar": "tools/apksigner.jar",
       "../../../tools/xop-pvm2-packer.jar": "tools/xop-pvm2-packer.jar",
       "../../../tools/licenses/XopProtector-LICENSE.txt": "licenses/XopProtector-LICENSE.txt",

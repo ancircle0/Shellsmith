@@ -36,13 +36,16 @@ public final class AssetsEncryptor {
     public static final byte[] CHUNK_MAGIC = {'P', 'A', 'S', '1'};
     public static final int CHUNK_SIZE = 1024 * 1024;
 
-    /**
-     * Formats that require native/random-access readers stay plaintext. PAS2 is
-     * stream-safe, but wrapping media changes seek and decoder buffering semantics.
-     */
-    private static final String[] SKIP_EXT = {
-            ".so", ".dex", ".jar", ".apk", ".aab", ".ttf", ".otf",
-            ".tflite", ".onnx", ".db", ".sqlite", ".sqlite3",
+    /** 平台加载器直接消费，代理读取会破坏加载。 */
+    private static final String[] SKIP_PLATFORM = {
+            ".so", ".dex", ".jar", ".apk", ".aab", ".ttf", ".otf"
+    };
+    /** 数据库和模型的真实读取方式仍需业务回归后再移出。 */
+    private static final String[] SKIP_RANDOM_ACCESS = {
+            ".tflite", ".onnx", ".db", ".sqlite", ".sqlite3"
+    };
+    /** 媒体解码器通常需要 seek，暂时保持明文。 */
+    private static final String[] SKIP_MEDIA = {
             ".mp3", ".m4a", ".wav", ".ogg", ".oga", ".aac", ".flac", ".opus", ".amr",
             ".3gp", ".mp4", ".mkv", ".webm", ".ts", ".mov", ".m3u8"
     };
@@ -53,11 +56,23 @@ public final class AssetsEncryptor {
     public static final class Result {
         public final int encrypted;
         public final int skipped;
+        public final int skippedByExtension;
+        public final int skippedUnreferenced;
+        public final int skippedDexopt;
         public final List<String> paths;
 
-        Result(int encrypted, int skipped, List<String> paths) {
+        Result(
+                int encrypted,
+                int skipped,
+                int skippedByExtension,
+                int skippedUnreferenced,
+                int skippedDexopt,
+                List<String> paths) {
             this.encrypted = encrypted;
             this.skipped = skipped;
+            this.skippedByExtension = skippedByExtension;
+            this.skippedUnreferenced = skippedUnreferenced;
+            this.skippedDexopt = skippedDexopt;
             this.paths = paths;
         }
     }
@@ -83,7 +98,7 @@ public final class AssetsEncryptor {
         }
         File assetsRoot = new File(unpackRoot, "assets");
         if (!assetsRoot.isDirectory()) {
-            return new Result(0, 0, List.of());
+            return new Result(0, 0, 0, 0, 0, List.of());
         }
 
         List<Path> files;
@@ -120,6 +135,9 @@ public final class AssetsEncryptor {
             prefixReferences = prefixes;
         }
         int skipped = 0;
+        int skippedByExtension = 0;
+        int skippedUnreferenced = 0;
+        int skippedDexopt = 0;
 
         for (Path abs : files) {
             String rel = assetsRoot.toPath().relativize(abs).toString().replace('\\', '/');
@@ -129,16 +147,19 @@ public final class AssetsEncryptor {
             // AGP may place baseline profiles under assets/dexopt — leave for ART.
             if (rel.startsWith("dexopt/") || rel.equals("dexopt")) {
                 skipped++;
+                skippedDexopt++;
                 prog.tick();
                 continue;
             }
             if (shouldSkip(rel)) {
                 skipped++;
+                skippedByExtension++;
                 prog.tick();
                 continue;
             }
             if (exactReferences != null && !isReferenced(rel, exactReferences, prefixReferences)) {
                 skipped++;
+                skippedUnreferenced++;
                 prog.tick();
                 continue;
             }
@@ -168,7 +189,13 @@ public final class AssetsEncryptor {
         }
         Files.writeString(mapFile.toPath(), map.toString(), StandardCharsets.UTF_8);
 
-        return new Result(encryptedPaths.size(), skipped, encryptedPaths);
+        return new Result(
+                encryptedPaths.size(),
+                skipped,
+                skippedByExtension,
+                skippedUnreferenced,
+                skippedDexopt,
+                encryptedPaths);
     }
 
     /** Exact constants plus explicit directory constants cover common dynamic path construction. */
@@ -269,8 +296,14 @@ public final class AssetsEncryptor {
 
     private static boolean shouldSkip(String relPath) {
         String lower = relPath.toLowerCase(Locale.US);
-        for (String ext : SKIP_EXT) {
-            if (lower.endsWith(ext)) return true;
+        return hasSuffix(lower, SKIP_PLATFORM)
+                || hasSuffix(lower, SKIP_RANDOM_ACCESS)
+                || hasSuffix(lower, SKIP_MEDIA);
+    }
+
+    private static boolean hasSuffix(String path, String[] suffixes) {
+        for (String suffix : suffixes) {
+            if (path.endsWith(suffix)) return true;
         }
         return false;
     }

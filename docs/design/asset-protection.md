@@ -10,6 +10,7 @@
 - 加固端还会有界扫描业务 ELF 中的静态资源路径，并生成经过认证的 Native 索引。被改写的 `Context.getAssets()` / `Resources.getAssets()` 会返回加入应用私有明文 ZIP overlay 的 `AssetManager`，覆盖常见 Java→JNI→`AAssetManager_open/openFileDescriptor` 交接路径。
 - 每次构建使用独立密钥并绑定应用签名；APK 内不保留明文 assets 路径索引。
 - DEX/JAR/APK/AAB、`.so`、数据库、字体和模型仍默认跳过；它们常由平台加载器、数据库引擎或第三方 mmap 路径直接消费，强制代理会降低兼容性。音视频可在检测到受支持读取路径时进入 PAS2，但必须用真实播放器回归 seek、并发和后台恢复。
+- packer 报告会把跳过项拆成扩展名策略、未出现在静态引用集合和 `dexopt/` 三类；这些统计只用于审计，不会把无法确认读取方式的文件强行纳入 PAS2。模型（`.onnx`、`.tflite`）是否移出跳过清单，必须先确认业务使用 `AssetManager.open`/`openFd` 或显式的受支持读取适配，再做真机回归。
 
 ## 不采用的首轮方案
 
@@ -26,6 +27,7 @@
 3. GUI 明确显示严格模式是否启用 PAS2。
 4. `openFd` 缓存只在认证成功后发布，临时文件失败会清理；APK 更新后使用新的缓存目录。
 5. 项目夹具已验证 Java 动态拼接 `openFd` 和 Java→JNI `AAssetManager_open`；仍必须用真实业务 APK 验证 WebView、Unity、第三方 Native SDK、目录枚举、seek/mmap 和多进程读取。
+6. 严格模式输出每类跳过数量，旧版 packer 缺少新增诊断字段时按零兼容，不阻断已有 PAS2 产物。
 
 ## 关键问题
 

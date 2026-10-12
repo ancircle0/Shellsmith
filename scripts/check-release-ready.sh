@@ -43,6 +43,23 @@ expect_file() {
   fi
 }
 
+# 分发物哈希固定：随包分发的 jar 被替换后必须在此显式更新，避免依赖被静默调包。
+# 更新时先核对上游来源，再改这里的期望值。
+expect_sha256() {
+  local path="$1"
+  local expected="$2"
+  if [[ ! -f "$path" ]]; then
+    return
+  fi
+  local actual
+  actual="$(shasum -a 256 "$path" | awk '{print $1}')"
+  if [[ "$actual" == "$expected" ]]; then
+    ok "哈希匹配: $path"
+  else
+    fail "$path 哈希不匹配，期望 $expected，实际 $actual"
+  fi
+}
+
 info "检查工作区状态"
 if [[ -z "$(git status --porcelain)" ]]; then
   ok "工作区干净"
@@ -82,10 +99,28 @@ else
 fi
 
 info "检查构建必需资源"
-expect_file "tools/apktool_3.0.1.jar" "开发工具 apktool 存在"
+expect_file "tools/apktool_3.0.3.jar" "开发工具 apktool 存在"
 expect_file "tools/apksigner.jar" "开发工具 apksigner 存在"
 expect_file "shield-stub/build/outputs/resources/resources.zip" "resources.zip 已生成"
 expect_file "shield-stub/build/outputs/resources/resources-api19.zip" "resources-api19.zip 已生成"
+
+info "检查分发物版本与哈希"
+if [[ -e "tools/apktool_3.0.1.jar" ]]; then
+  fail "旧版 apktool_3.0.1.jar 仍存在，必须删除以免混用"
+else
+  ok "旧版 apktool 已移除"
+fi
+if [[ -f "tools/apktool_3.0.3.jar" ]]; then
+  apktool_version="$(java -jar tools/apktool_3.0.3.jar --version 2>/dev/null | tr -d '\r' || true)"
+  if [[ "$apktool_version" == "3.0.3" ]]; then
+    ok "apktool 版本 3.0.3"
+  else
+    fail "apktool 版本不符：$apktool_version，期望 3.0.3"
+  fi
+fi
+expect_sha256 "tools/apktool_3.0.3.jar" "dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423"
+expect_sha256 "tools/apksigner.jar" "2defad215d7ff52968a409cde528cdaef7918b115e276b8e3378ca7a178e4180"
+expect_sha256 "tools/xop-pvm2-packer.jar" "e467f65bbc24e80bb2e6d07f5d5f292a419945556a2419958c782b8f1f1be7d1"
 
 info "检查 README 截图引用"
 screenshot_refs=()

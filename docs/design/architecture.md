@@ -110,7 +110,7 @@ mocika-shield/
 │               └── crypto.rs        # derive_key（HKDF-SHA256）/ decrypt（ChaCha20-Poly1305）
 │
 ├── tools/                            # 外部工具 JAR（开发环境）
-│   ├── apktool_3.0.1.jar
+│   ├── apktool_3.0.3.jar
 │   └── apksigner.jar
 │
 └── scripts/                          # 构建与发布脚本
@@ -134,7 +134,7 @@ mocika-shield/
 1. **发布包路径**：`bin/../lib/apktool.jar`、`bin/../resources/resources.zip`
 2. **用户数据目录**（`directories::ProjectDirs`）：`~/.local/share/mocika-shield/`（Linux）等
 3. **系统数据目录**：`/usr/local/share/mocika-shield/`（Linux）、`/Library/Application Support/mocika-shield/`（macOS）等
-4. **开发环境路径**：`tools/apktool_3.0.1.jar`、`shield-stub/build/outputs/resources/resources.zip`
+4. **开发环境路径**：`tools/apktool_3.0.3.jar`、`shield-stub/build/outputs/resources/resources.zip`
 
 `shield-gui`（Tauri 版）的查找优先级：
 
