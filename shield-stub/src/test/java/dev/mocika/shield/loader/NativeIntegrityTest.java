@@ -2,6 +2,10 @@ package dev.mocika.shield.loader;
 
 import org.junit.Test;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -62,5 +66,37 @@ public class NativeIntegrityTest {
         // 非库文件
         assertFalse(NativeIntegrity.isShellLibraryEntry(
                 "lib/arm64-v8a/classes.dex", "lib/arm64-v8a/"));
+    }
+
+    @Test
+    public void 解压目录只识别壳库文件名() {
+        assertTrue(NativeIntegrity.isShellLibraryFileName("libmoduleapisupport.so"));
+        assertFalse(NativeIntegrity.isShellLibraryFileName("libbusiness.so"));
+        assertFalse(NativeIntegrity.isShellLibraryFileName("lib/arm64-v8a/libmoduleapisupport.so"));
+        assertFalse(NativeIntegrity.isShellLibraryFileName("libModuleapisupport.so"));
+    }
+
+    @Test
+    public void 解压副本按实际文件字节计算摘要() throws Exception {
+        File directory = Files.createTempDirectory("native-integrity").toFile();
+        try {
+            Files.write(new File(directory, "libmoduleapisupport.so").toPath(),
+                    "payload".getBytes(StandardCharsets.UTF_8));
+            assertEquals("239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5",
+                    NativeIntegrity.hashExtractedShellLibrary(directory.getPath()));
+        } finally {
+            Files.deleteIfExists(new File(directory, "libmoduleapisupport.so").toPath());
+            Files.deleteIfExists(directory.toPath());
+        }
+    }
+
+    @Test
+    public void 解压目录缺少唯一壳库时返回_null() throws Exception {
+        File directory = Files.createTempDirectory("native-integrity-empty").toFile();
+        try {
+            assertNull(NativeIntegrity.hashExtractedShellLibrary(directory.getPath()));
+        } finally {
+            Files.deleteIfExists(directory.toPath());
+        }
     }
 }

@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     alias(libs.plugins.android.library)
 }
@@ -6,10 +8,11 @@ val runtimeProfileEnabled = providers.environmentVariable("MOCIKA_RUNTIME_PROFIL
     .orNull == "1"
 val legacyByteArrayEnabled = providers.environmentVariable("MOCIKA_LEGACY_BYTE_ARRAY")
     .orNull == "1"
-// 原生库启动期完整性校验。默认关闭：开启后一旦构建期哈希与设备侧实际加载的
-// 库不一致会直接拒绝启动，需先在真实设备矩阵上验证后再于发布构建中打开。
-val nativeSelfCheckEnabled = providers.environmentVariable("MOCIKA_NATIVE_SELF_CHECK")
-    .orNull == "1"
+// 原生库启动期完整性校验：Release 默认开启，Debug 默认关闭；显式设置环境变量
+// 可覆盖该默认值（1 开启，0 关闭）。校验失败会直接拒绝启动。
+val nativeSelfCheckOverride = providers.environmentVariable("MOCIKA_NATIVE_SELF_CHECK").orNull
+val nativeSelfCheckDebugEnabled = nativeSelfCheckOverride == "1"
+val nativeSelfCheckReleaseEnabled = nativeSelfCheckOverride != "0"
 // CI 默认固定版本；本机验证可通过 MOCIKA_NDK_VERSION 选择已安装的兼容 NDK。
 val ndkVersionPinned = System.getenv("MOCIKA_NDK_VERSION") ?: "29.0.14206865"
 
@@ -32,7 +35,7 @@ android {
         buildConfigField("boolean", "DEBUG_LOGS", "true")
         buildConfigField("boolean", "RUNTIME_PROFILE", runtimeProfileEnabled.toString())
         buildConfigField("boolean", "LEGACY_BYTE_ARRAY", legacyByteArrayEnabled.toString())
-        buildConfigField("boolean", "NATIVE_SELF_CHECK", nativeSelfCheckEnabled.toString())
+        buildConfigField("boolean", "NATIVE_SELF_CHECK", nativeSelfCheckDebugEnabled.toString())
     }
 
     buildTypes {
@@ -40,9 +43,11 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "DEBUG_LOGS", "false")
+            buildConfigField("boolean", "NATIVE_SELF_CHECK", nativeSelfCheckReleaseEnabled.toString())
         }
         debug {
             buildConfigField("boolean", "DEBUG_LOGS", "true")
+            buildConfigField("boolean", "NATIVE_SELF_CHECK", nativeSelfCheckDebugEnabled.toString())
         }
     }
 
@@ -97,4 +102,18 @@ tasks.named("preBuild") {
 dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.junit)
+}
+
+// Release AAR 的 runtime jar 是 R8 裁剪后的发布入口，内部类会被重命名或移除；
+// Release 单测需要原始类验证实现细节，测试类路径优先使用编译产物，不改变发布包。
+tasks.withType<Test>().configureEach {
+    if (name == "testReleaseUnitTest") {
+        val releaseClassesJar = layout.buildDirectory.file(
+            "intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar"
+        )
+        dependsOn("bundleLibCompileToJarRelease")
+        doFirst {
+            classpath = files(releaseClassesJar) + classpath
+        }
+    }
 }

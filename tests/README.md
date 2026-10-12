@@ -2,7 +2,7 @@
 
 `fixtures/android-smoke-app` 是项目自有的最小 Android 测试夹具，只负责提供包含自定义 `Application` 和启动 `Activity` 的稳定输入 APK，不承载产品示例或业务功能。
 
-`scripts/build-smoke-multidex.sh` 会把独立编译的 `SecondaryMarker` 写入 `classes2.dex`。`scripts/run-protect-e2e.sh` 以这个真实双 DEX APK 为输入，负责无设备回归链路：编译显式设置 `extractNativeLibs=false` 且原本不含 Native 库的测试 APK，临时生成测试证书、签名原始 APK、执行加固、再次签名，并验证签名、MSHD 块、壳 Native 库、Manifest 保留和全部 `.so` 不压缩存储，以及 `check-apk` 结果。
+`scripts/build-smoke-multidex.sh` 会把独立编译的 `SecondaryMarker` 写入 `classes2.dex`。`scripts/run-protect-e2e.sh` 以这个真实双 DEX APK 为输入，负责无设备回归链路：临时生成测试证书、签名原始 APK、执行加固、再次签名，并验证签名、MSHD 块、壳 Native 库、Manifest 保留、`NATIVE_INTEGRITY` 与各 ABI 壳库字节一致，以及 `check-apk` 结果。输入 Manifest 为 `extractNativeLibs=false` 时额外断言全部 `.so` 使用 `Stored`；为 `true` 时保留原压缩策略，设备回归覆盖解压副本路径。
 
 ```bash
 make build-stub

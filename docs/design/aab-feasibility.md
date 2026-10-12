@@ -10,7 +10,7 @@
 
 实验优先验证现有 DEXB v6 是否可以穿过 AAB 到设备 APK 的转换链路，并确认现有壳加载方案在拆分安装场景中的基础可行性：
 
-1. `base/dex/classes.dex` 的 DEX 头部 `file_size` 之外追加载荷，经过 bundletool 生成拆分 APK 和通用 APK 后是否保留。
+1. `base/dex/classes.dex` 在原始 DEX 头部 `file_size` 之后追加载荷，经过 bundletool 生成拆分 APK 和通用 APK 后是否保留；最终 `file_size` 是否被重写为包含追加块的全长。
 2. 单 base 模块能否复用现有 DEXB v5、混淆 Stub DEX、Native 解密和 `PathClassLoader` 注入链路。
 3. ABI 配置 APK、dynamic-feature、install-time Asset Pack、多 DEX、覆盖更新、清除数据和错误签名拒绝是否符合预期。
 4. AAB 上传证书、Play 应用签名证书与本地测试证书之间需要怎样的签名绑定边界。

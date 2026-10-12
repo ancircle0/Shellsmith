@@ -66,7 +66,7 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 升级时优先使用 `scripts/bump-version.sh`，同步 `crates/shield-core/Cargo.toml`、`apps/shield-cli/Cargo.toml`、`shield-stub/src/main/rust/Cargo.toml`、`shield-stub/compat/api19-rust/Cargo.toml` 及其独立 `Cargo.lock`、`apps/shield-gui/src-tauri/Cargo.toml`、`apps/shield-gui/src-tauri/tauri.conf.json`、`apps/shield-gui/package.json` 和 `apps/shield-gui/package-lock.json`。API 19 发布构建使用 `--locked`，不得只修改兼容清单而遗漏独立锁文件。
 
 ### DEXB v5/v6 格式
-加密 DEX 以 MSHD 块追加到 `classes.dex` 末尾（DEX `file_size` 之外，工具不可见）。
+加密 DEX 以 MSHD 块追加到 `classes.dex` 末尾；载荷从原始 DEX `file_size` 边界之后开始，随后 `patch_dex_header` 会把最终 `file_size` 更新为包含追加块的全长。标准工具仍按 DEX 结构解析，不应把该描述写成“载荷位于最终 `file_size` 之外”。
 DEXB 头部明文区布局：`magic(4) + version(4) + dex_count(4) + sig_len(1) + signature[sig_len] + ikm_len(1) + ikm[ikm_len] + nonce(12)`，之后为 ChaCha20-Poly1305 密文。
 新包默认使用 v6：`magic(4) + version(4) + dex_count(4) + flags(4) + sig_len(1) + signature + build_id(16) + wrap_nonce(12) + wrapped_ikm_len(2) + wrapped_ikm + payload_nonce(12) + ciphertext`。
 v6 不把 IKM 直接写入明文头部；运行时使用证书指纹和 build_id 派生包裹密钥后恢复 IKM。

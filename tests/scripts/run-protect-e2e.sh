@@ -12,6 +12,17 @@ for command in java keytool cargo unzip; do
   command -v "$command" >/dev/null || { echo "缺少命令: $command" >&2; exit 1; }
 done
 
+hash_stream() {
+  if command -v sha256sum >/dev/null; then
+    sha256sum | awk '{print $1}'
+  elif command -v shasum >/dev/null; then
+    shasum -a 256 | awk '{print $1}'
+  else
+    echo "缺少 sha256sum 或 shasum，无法复验 Native 完整性摘要" >&2
+    exit 1
+  fi
+}
+
 test -f "$ROOT/shield-stub/build/outputs/resources/resources.zip" || {
   echo "缺少 resources.zip，请先执行 make build-stub" >&2
   exit 1
@@ -112,8 +123,37 @@ fi
 
 DECODED="$WORK/output-decoded"
 java -jar "$ROOT/tools/apktool_3.0.3.jar" d "$FINAL" -o "$DECODED" -f --no-src >/dev/null
-grep -q 'android:extractNativeLibs="false"' "$DECODED/AndroidManifest.xml"
+EXTRACT_NATIVE_LIBS="$(sed -n \
+  's/.*android:extractNativeLibs="\([^"]*\)".*/\1/p' \
+  "$DECODED/AndroidManifest.xml")"
+case "$EXTRACT_NATIVE_LIBS" in
+  false|true) ;;
+  *)
+    echo "最终 APK 缺少可识别的 extractNativeLibs 策略" >&2
+    exit 1
+    ;;
+esac
 grep -q 'android:enableOnBackInvokedCallback="true"' "$DECODED/AndroidManifest.xml"
+
+NATIVE_INTEGRITY="$(sed -n \
+  's/.*android:name="dev\.mocika\.shield\.NATIVE_INTEGRITY" android:value="\([^"]*\)".*/\1/p' \
+  "$DECODED/AndroidManifest.xml")"
+if [ -z "$NATIVE_INTEGRITY" ]; then
+  echo "最终 APK 缺少 NATIVE_INTEGRITY 元数据" >&2
+  exit 1
+fi
+for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+  alias_path="$(unzip -Z1 "$FINAL" | awk -v abi="$abi" '$0 ~ ("^lib/" abi "/libmodule[a-z]+\\.so$") { print; exit }')"
+  if [ -z "$alias_path" ]; then
+    echo "最终 APK 缺少 $abi 壳库别名，无法复验 NATIVE_INTEGRITY" >&2
+    exit 1
+  fi
+  digest="$(unzip -p "$FINAL" "$alias_path" | hash_stream)"
+  if ! grep -qF "$abi:$digest" <<< "$NATIVE_INTEGRITY"; then
+    echo "NATIVE_INTEGRITY 与 $alias_path 字节不一致" >&2
+    exit 1
+  fi
+done
 
 if [[ "${PVM2_STRICT_TEST:-0}" == "1" ]]; then
   unzip -p "$SIGNED" lib/arm64-v8a/libmocikasmoke.so > "$WORK/native-before.so"
@@ -126,11 +166,13 @@ if [[ "${PVM2_STRICT_TEST:-0}" == "1" ]]; then
   grep -a -q '^PSO2' "$WORK/mocika-sokeys.bin"
 fi
 
-COMPRESSED_SO="$(unzip -lv "$FINAL" | awk '$NF ~ /^lib\/.+\.so$/ && $2 != "Stored" { print $NF }')"
-if [ -n "$COMPRESSED_SO" ]; then
-  echo "extractNativeLibs=false 时存在压缩 Native 库：" >&2
-  printf '%s\n' "$COMPRESSED_SO" >&2
-  exit 1
+if [ "$EXTRACT_NATIVE_LIBS" = "false" ]; then
+  COMPRESSED_SO="$(unzip -lv "$FINAL" | awk '$NF ~ /^lib\/.+\.so$/ && $2 != "Stored" { print $NF }')"
+  if [ -n "$COMPRESSED_SO" ]; then
+    echo "extractNativeLibs=false 时存在压缩 Native 库：" >&2
+    printf '%s\n' "$COMPRESSED_SO" >&2
+    exit 1
+  fi
 fi
 
 verify_launch() {

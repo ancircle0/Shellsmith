@@ -139,4 +139,20 @@ mod tests {
     fn adler32_wikipedia_known_value() {
         assert_eq!(adler32_checksum(b"Wikipedia"), 0x11E60398);
     }
+
+    #[test]
+    fn patch_dex_header把追加载荷计入最终_file_size() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("classes.dex");
+        let mut dex = vec![0u8; 64];
+        dex[0..8].copy_from_slice(b"dex\n035\0");
+        dex[32..36].copy_from_slice(&(64u32).to_le_bytes());
+        dex.extend_from_slice(b"MSHDpayload");
+        fs::write(&path, &dex).unwrap();
+
+        patch_dex_header(&path).unwrap();
+        let patched = fs::read(&path).unwrap();
+        let file_size = u32::from_le_bytes(patched[32..36].try_into().unwrap()) as usize;
+        assert_eq!(file_size, patched.len());
+    }
 }

@@ -38,7 +38,8 @@ pub(crate) fn inject_runtime(
     let mut injected_abis = HashSet::new();
     // 壳库在打包过程中只改文件名、不改字节，因此这里按 ABI 记录其明文摘要，
     // 供设备侧启动时比对；写入 manifest 的字段由运行时读取。
-    let mut shell_digests: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let mut shell_digests: std::collections::BTreeMap<String, String> =
+        std::collections::BTreeMap::new();
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
