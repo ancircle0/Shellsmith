@@ -52,12 +52,6 @@ pub(crate) fn archive(
         OsString::from("-archivePath"),
         archive_path.as_os_str().to_os_string(),
         OsString::from(format!("DEVELOPMENT_TEAM={}", config.team_id)),
-        // Archive 阶段显式收紧发布产物，避免依赖用户工程里可能遗漏的默认值。
-        OsString::from("STRIP_INSTALLED_PRODUCT=YES"),
-        OsString::from("DEPLOYMENT_POSTPROCESSING=YES"),
-        OsString::from("COPY_PHASE_STRIP=YES"),
-        OsString::from("STRIP_STYLE=all"),
-        OsString::from("SWIFT_REFLECTION_METADATA_LEVEL=none"),
     ]);
     if allow_provisioning_updates {
         args.push(OsString::from("-allowProvisioningUpdates"));
