@@ -120,7 +120,7 @@ if [[ -f "tools/apktool_3.0.3.jar" ]]; then
 fi
 expect_sha256 "tools/apktool_3.0.3.jar" "dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423"
 expect_sha256 "tools/apksigner.jar" "2defad215d7ff52968a409cde528cdaef7918b115e276b8e3378ca7a178e4180"
-expect_sha256 "tools/xop-pvm2-packer.jar" "2f8e7cdd01a78f6992d1233b85c81476e773141d5c1192cf9d856fd2a6dac860"
+expect_sha256 "tools/xop-pvm2-packer.jar" "e467f65bbc24e80bb2e6d07f5d5f292a419945556a2419958c782b8f1f1be7d1"
 
 info "检查 README 截图引用"
 screenshot_refs=()

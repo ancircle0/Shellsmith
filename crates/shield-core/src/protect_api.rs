@@ -408,11 +408,14 @@ pub fn protect_apk(
             .map_err(ShieldError::from)?;
             restore_external_pas2_assets(&staged_external_assets).map_err(ShieldError::from)?;
             print_success(&format!(
-                "assets PAS2 分块加密完成：{} 个文件加密（Java {}、Native {}），{} 个兼容性跳过，{} 个 open/openFd 调用已重定向",
+                "assets PAS2 分块加密完成：{} 个文件加密（Java {}、Native {}），{} 个兼容性跳过（扩展名 {}、未引用 {}、dexopt {}），{} 个 open/openFd 调用已重定向",
                 assets.encrypted,
                 assets.java_assets,
                 assets.native_assets,
                 assets.skipped,
+                assets.skipped_by_ext,
+                assets.skipped_unreferenced,
+                assets.skipped_dexopt,
                 assets.callsites
             ));
             let native = crate::protect::xop_pvm2::transform_native_sos(

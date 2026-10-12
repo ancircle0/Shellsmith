@@ -18,7 +18,11 @@ pub(crate) fn copy_and_validate(source: &Path, target_directory: &Path) -> Resul
         anyhow::bail!("Swift Confidential 配置缺少 secrets 列表");
     }
     fs::create_dir_all(target_directory)?;
-    fs::write(target_directory.join("confidential.yml"), content)?;
+    let target = target_directory.join("confidential.yml");
+    fs::write(&target, content)?;
+    if selected_literals(&target)?.is_empty() {
+        anyhow::bail!("Swift Confidential 配置的 secrets 列表为空");
+    }
     Ok(())
 }
 
@@ -107,5 +111,13 @@ mod tests {
                 b"pin-two".to_vec()
             ]
         );
+    }
+
+    #[test]
+    fn rejects_empty_secret_list() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        fs::write(source.path(), "secrets: []\n").unwrap();
+        let target = tempfile::tempdir().unwrap();
+        assert!(copy_and_validate(source.path(), target.path()).is_err());
     }
 }
