@@ -94,11 +94,19 @@ pub fn sign_apk_with_progress(
         .to_str()
         .context("apksigner 路径包含非法字符")?
         .to_string();
-    let ks_pass_arg = format!("pass:{}", opts.keystore_password);
-    let key_pass_arg = format!("pass:{}", opts.key_password);
 
     let v = &opts.signing_versions;
     let temp_dir = TempDir::new().context("创建签名临时目录失败")?;
+    // 口令经文件传递：写在命令行上的口令对同机其他进程可见（ps、/proc/<pid>/cmdline）。
+    // 临时目录随进程退出清理，口令文件另收紧到 0600。
+    let ks_pass_arg = format!(
+        "file:{}",
+        write_password_file(temp_dir.path(), "ks.pass", &opts.keystore_password)?.display()
+    );
+    let key_pass_arg = format!(
+        "file:{}",
+        write_password_file(temp_dir.path(), "key.pass", &opts.key_password)?.display()
+    );
     let aligned_input = temp_dir.path().join("aligned.apk");
     on_progress(SigningProgressStep::Align).map_err(anyhow::Error::msg)?;
     std::fs::copy(&opts.apk_path, &aligned_input)
@@ -199,6 +207,21 @@ pub fn sign_apk_with_progress(
     }
 
     Ok(())
+}
+
+/// 把口令写入临时文件并收紧权限，供 apksigner 的 `file:` 参数使用。
+/// 文件内容不追加换行：apksigner 的 file 读取会自行去掉行尾。
+fn write_password_file(dir: &Path, name: &str, password: &str) -> Result<PathBuf> {
+    let path = dir.join(name);
+    std::fs::write(&path, password.as_bytes())
+        .with_context(|| format!("写入口令文件失败: {}", path.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .with_context(|| format!("收紧口令文件权限失败: {}", path.display()))?;
+    }
+    Ok(path)
 }
 
 fn bool_str(b: bool) -> &'static str {
