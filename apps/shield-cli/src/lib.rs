@@ -9,7 +9,7 @@ mod config;
 
 pub use args::{
     AiResistanceArg, EnvironmentPolicyArg, KeystoreTypeArg, ProtectAabArgs, ProtectionEngineArg,
-    ProtectionProfileArg, XopProfileArg,
+    ProtectionProfileArg, RuntimeUiArgs, XopProfileArg,
 };
 pub use commands::{run_check_aab, run_protect_aab_with_control};
 pub use shield_core::*;

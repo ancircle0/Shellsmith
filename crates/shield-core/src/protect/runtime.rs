@@ -202,6 +202,7 @@ fn hex_lower(bytes: &[u8]) -> String {
 
 #[derive(Debug)]
 pub(crate) struct RuntimeSelection {
+    pub(crate) runtime_ui: bool,
     pub(crate) stub_application: String,
     pub(crate) stub_component_factory: Option<String>,
     pub(crate) memory_dex: bool,
@@ -242,6 +243,7 @@ pub(crate) fn read_runtime_selection(
         xop_vm_bridge: metadata.xop_vm_bridge,
         xop_vm_bridge_method: metadata.xop_vm_bridge_method,
         assets_pas2: metadata.assets_pas2,
+        runtime_ui: metadata.runtime_ui,
         assets_bridge: metadata.assets_bridge,
         assets_bridge_method: metadata.assets_bridge_method,
         native_so_text: metadata.native_so_text,

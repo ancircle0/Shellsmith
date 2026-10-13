@@ -22,7 +22,22 @@ export type AppConfig = {
   protect_defaults?: ProtectDefaults;
 };
 
+export type RuntimeUiProtection = {
+  secure_screen: boolean;
+  screen_exempt_activities: string[];
+  adb_policy: "off" | "report" | "block";
+  runtime_recheck: boolean;
+  obfuscate_resource_names: boolean;
+  resource_name_keep: string[];
+};
+
+export const defaultRuntimeUi: RuntimeUiProtection = {
+  secure_screen: false, screen_exempt_activities: [], adb_policy: "off",
+  runtime_recheck: false, obfuscate_resource_names: false, resource_name_keep: [],
+};
+
 export type ProtectDefaults = {
+  runtime_ui: RuntimeUiProtection;
   runtime_mode: "standard" | "android_api19";
   environment_policy: "compatible" | "strict";
   protection_profile: "compat" | "balanced" | "strict";
@@ -272,6 +287,7 @@ export type AabInspection = {
 };
 
 export type AabProtectRequest = {
+  runtimeUi: RuntimeUiProtection;
   taskId: string;
   input: string;
   output: string;
@@ -406,7 +422,7 @@ export const api = {
     invoke<ApkCheckResult>("check_apk", { path, runtimeMode, certificateId: certificateId ?? null }),
   checkAab: (path: string) => invoke<AabInspection>("check_aab", { path }),
   protectAab: (request: AabProtectRequest) => invoke<void>("protect_aab", { request }),
-  protectApk: (taskId: string, input: string, output: string, runtimeMode: "standard" | "android_api19", environmentPolicy: "compatible" | "strict", protectionProfile: "compat" | "balanced" | "strict", aiResistance: "off" | "balanced" | "high", xopPvm2PackerPath: string | null, xopTrueVmpPrefixes: string[], signedOutput?: string | null, certificateId?: string | null, excludedAbis: string[] = [], sharing: SharingChoice | null = null) =>
+  protectApk: (taskId: string, input: string, output: string, runtimeMode: "standard" | "android_api19", environmentPolicy: "compatible" | "strict", protectionProfile: "compat" | "balanced" | "strict", aiResistance: "off" | "balanced" | "high", xopPvm2PackerPath: string | null, xopTrueVmpPrefixes: string[], signedOutput?: string | null, certificateId?: string | null, excludedAbis: string[] = [], sharing: SharingChoice | null = null, runtimeUi: RuntimeUiProtection = defaultRuntimeUi) =>
     invoke<void>("protect_apk", {
       request: {
         taskId,
@@ -416,6 +432,7 @@ export const api = {
         signedOutput: signedOutput ?? null,
         apktoolPath: null,
         runtimeMode,
+        runtimeUi,
         environmentPolicy,
         protectionProfile,
         aiResistance,

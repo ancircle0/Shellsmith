@@ -19,6 +19,8 @@ use tauri::Manager;
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AabProtectRequest {
+    #[serde(default)]
+    pub(crate) runtime_ui: shield_core::RuntimeUiProtection,
     pub(crate) task_id: String,
     pub(crate) input: String,
     pub(crate) output: String,
@@ -73,6 +75,7 @@ pub(crate) async fn execute_protect_aab(
         .ok_or_else(|| ExecutionFailure::from("当前安装包缺少 Android 运行时资源".to_string()))?;
     let apksigner = find_apksigner_path(&app)
         .ok_or_else(|| ExecutionFailure::from("当前安装包缺少 apksigner".to_string()))?;
+    let ui_packer = find_xop_pvm2_packer_path(&app);
     let pvm2 = if request.xop_true_vmp_prefixes.is_empty() {
         None
     } else {
@@ -89,6 +92,7 @@ pub(crate) async fn execute_protect_aab(
         let key_password =
             (!certificate.key_password.is_empty()).then_some(certificate.key_password);
         let args = ProtectAabArgs {
+            runtime_ui: shield_cli::RuntimeUiArgs::from_options(request.runtime_ui, ui_packer),
             input: strip_unc_prefix(PathBuf::from(request.input)),
             output: strip_unc_prefix(PathBuf::from(request.output)),
             bundletool,

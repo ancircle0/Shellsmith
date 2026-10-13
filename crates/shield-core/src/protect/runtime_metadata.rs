@@ -12,6 +12,7 @@ pub(crate) struct RuntimeMetadata {
     pub(crate) stub_application: String,
     pub(crate) stub_component_factory: Option<String>,
     pub(crate) native_alias: NativeAliasProtocol,
+    pub(crate) runtime_ui: bool,
     pub(crate) environment_policy: bool,
     pub(crate) memory_dex: bool,
     pub(crate) xop_pvm2: bool,
@@ -100,6 +101,7 @@ impl RuntimeMetadata {
             }
         }
         Ok(Self {
+            runtime_ui: parse_bool(json, "runtime_ui").unwrap_or(false),
             stub_application,
             stub_component_factory,
             native_alias: NativeAliasProtocol::parse(json)?,
@@ -186,6 +188,7 @@ mod tests {
         assert_eq!(metadata.native_alias.name_length, 16);
         assert!(!metadata.environment_policy);
         assert!(!metadata.memory_dex);
+        assert!(!metadata.runtime_ui);
         assert!(!metadata.xop_pvm2);
         assert!(!metadata.assets_pas2);
         assert!(!metadata.native_so_text);

@@ -1,3 +1,4 @@
+import { defaultRuntimeUi } from "@/lib/tauri";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Clipboard, FolderOpen, RotateCcw, Square } from "lucide-react";
 import { AppButton, DropZone, SelectedApkCard, StatusMessage, TextInput } from "@/components/app/common";
@@ -82,6 +83,7 @@ export function ProtectPage({
 
   function restoreRecommended() {
     const recommended: ProtectDefaults = {
+      runtime_ui: defaultRuntimeUi,
       runtime_mode: "standard",
       environment_policy: "compatible",
       protection_profile: "balanced",
@@ -126,7 +128,8 @@ export function ProtectPage({
     && workflow.protectionProfile === "balanced"
     && workflow.aiResistance === "balanced"
     && !hasCustomPvmPacker
-    && !hasPvmPrefixes;
+    && !hasPvmPrefixes
+    && JSON.stringify(workflow.runtimeUi) === JSON.stringify(defaultRuntimeUi);
   const pvmConfigurationIncomplete = (hasCustomPvmPacker && !hasPvmPrefixes) || (hasPvmPrefixes && !hasPvmPacker);
   const startDisabled = workflow.sharing.pending || !runtimeInfoLoaded || !workflow.preflight || Boolean(workflow.precheck) || workflow.state === "prechecking"
     || workflow.preflight?.verdict === "blocked"
@@ -206,6 +209,8 @@ export function ProtectPage({
               </div>
             ) : (
               <ProtectConfigurationPanel
+                runtimeUi={workflow.runtimeUi}
+                onRuntimeUiChange={(value) => { workflow.setRuntimeUi(value); updateDefaults({ runtime_ui: value }); }}
                 locale={locale} disabled={locked} startDisabled={startDisabled}
                 sharingControl={sharingControl}
                 runtimeMode={workflow.runtimeMode} runtimeModeGuidance={runtimeModeGuidance} environmentPolicy={workflow.environmentPolicy}

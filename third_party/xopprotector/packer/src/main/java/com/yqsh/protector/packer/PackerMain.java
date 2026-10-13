@@ -201,6 +201,10 @@ public class PackerMain {
             System.exit(1);
         }
         try {
+            if ("ui-transform".equals(args[0]) || "resource-name-transform".equals(args[0])) {
+                UiProtectionTool.run(args);
+                return;
+            }
             if ("channel".equals(args[0])) {
                 runChannelCli(args);
                 return;

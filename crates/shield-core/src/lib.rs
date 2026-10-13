@@ -11,6 +11,8 @@ mod preflight;
 mod protect;
 mod protect_api;
 pub mod protection_policy;
+pub mod runtime_ui;
+pub use runtime_ui::{AdbPolicy, RuntimeUiProtection};
 pub mod signing;
 pub mod utils;
 pub mod zipalign;

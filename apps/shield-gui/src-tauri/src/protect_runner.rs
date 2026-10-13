@@ -84,6 +84,7 @@ fn resolve_xop_pvm2_packer(
 }
 
 pub(crate) struct ProtectExecution {
+    pub(crate) runtime_ui: shield_core::RuntimeUiProtection,
     pub(crate) excluded_abis: Vec<String>,
     pub(crate) task_id: String,
     pub(crate) input: String,
@@ -137,6 +138,7 @@ pub(crate) async fn execute_protect_apk(
         }
     };
     let resolved_apksigner = find_apksigner_path(&app);
+    let ui_packer = find_xop_pvm2_packer_path(&app);
     let resolved_xop_pvm2_packer = resolve_xop_pvm2_packer(
         request.xop_pvm2_packer_path.clone(),
         &request.xop_true_vmp_prefixes,
@@ -166,6 +168,8 @@ pub(crate) async fn execute_protect_apk(
                 ExecutionFailure::diagnosed(err.to_string(), Diagnostic::from_error(&err))
             })?;
         let opts = ProtectOptions {
+            runtime_ui: request.runtime_ui,
+            ui_packer_path: ui_packer,
             excluded_abis: request.excluded_abis,
             input: strip_unc_prefix(PathBuf::from(request.input)),
             output: strip_unc_prefix(PathBuf::from(request.output)),

@@ -61,6 +61,8 @@ use updates::{check_update_impl, UpdateCheckResult};
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProtectRequest {
+    #[serde(default)]
+    runtime_ui: shield_core::RuntimeUiProtection,
     sharing: Option<application_sharing::SharingChoice>,
     #[serde(default)]
     excluded_abis: Vec<String>,
@@ -213,6 +215,7 @@ async fn protect_apk(
             apktool_path: request.apktool_path,
             runtime_mode: request.runtime_mode,
             environment_policy: request.environment_policy,
+            runtime_ui: request.runtime_ui,
             protection_profile: request.protection_profile,
             ai_resistance: request.ai_resistance,
             xop_pvm2_packer_path: request.xop_pvm2_packer_path,

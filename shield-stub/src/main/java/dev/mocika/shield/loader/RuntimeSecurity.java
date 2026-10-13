@@ -31,6 +31,7 @@ final class RuntimeSecurity {
         } catch (Exception e) {
             Log.e(TAG, "S03", e);
         }
+        MocikaUi.initialize(context);
         int signals = Ld.r();
         reportSuspect(signals);
         enforceSafe(shouldReject(signals, isStrictPolicy(context)));

@@ -450,6 +450,7 @@ cat > "$OUTPUT_DIR/metadata.json" << EOF
 $XOP_PVM2_FORMAT_FIELD
   "xop_vm_bridge": "$OBF_XOP_BRIDGE",
   "xop_vm_bridge_method": "$OBF_XOP_BRIDGE_METHOD",
+  "runtime_ui": true,
   "assets_pas2": true,
   "assets_bridge": "$OBF_ASSETS_BRIDGE",
   "assets_bridge_method": "open",
@@ -515,6 +516,7 @@ cat > "$OUTPUT_DIR/metadata.json" << EOF
 $XOP_PVM2_FORMAT_FIELD
   "xop_vm_bridge": "$OBF_XOP_BRIDGE",
   "xop_vm_bridge_method": "$OBF_XOP_BRIDGE_METHOD",
+  "runtime_ui": true,
   "assets_pas2": true,
   "assets_bridge": "$OBF_ASSETS_BRIDGE",
   "assets_bridge_method": "open",

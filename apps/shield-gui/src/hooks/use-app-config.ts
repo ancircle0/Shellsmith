@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { detectSystemLocale, type Locale } from "@/lib/i18n";
-import { api, type AppConfig, type ProtectDefaults, type ThemeMode, type UpdateCheckResult } from "@/lib/tauri";
+import { api, defaultRuntimeUi, type AppConfig, type ProtectDefaults, type ThemeMode, type UpdateCheckResult } from "@/lib/tauri";
 import { normalizeThemeMode } from "@/hooks/use-applied-theme-mode";
 
 export function useAppConfigState() {
@@ -9,6 +9,7 @@ export function useAppConfigState() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const [protectDefaults, setProtectDefaults] = useState<ProtectDefaults>({
+    runtime_ui: defaultRuntimeUi,
     runtime_mode: "standard",
     environment_policy: "compatible",
     protection_profile: "balanced",
