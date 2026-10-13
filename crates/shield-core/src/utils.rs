@@ -365,6 +365,30 @@ pub fn ensure_keytool() -> Result<JavaEnvironmentInfo> {
     Ok(info)
 }
 
+pub fn find_ui_packer() -> Result<PathBuf> {
+    let exe = exe_dir();
+    let candidates = [
+        exe.join("../lib/xop-pvm2-packer.jar"),
+        exe.join("../Resources/tools/xop-pvm2-packer.jar"),
+    ];
+    for p in candidates
+        .into_iter()
+        .chain(
+            data_search_dirs()
+                .into_iter()
+                .map(|dir| dir.join("lib/xop-pvm2-packer.jar")),
+        )
+        .chain(std::iter::once(
+            dev_project_root().join("tools/xop-pvm2-packer.jar"),
+        ))
+    {
+        if p.is_file() {
+            return Ok(strip_unc_prefix(&p));
+        }
+    }
+    anyhow::bail!("缺少界面保护工具，请安装完整发布包或通过 --ui-packer 指定 JAR")
+}
+
 pub fn find_apktool() -> Result<PathBuf> {
     let exe = exe_dir();
 

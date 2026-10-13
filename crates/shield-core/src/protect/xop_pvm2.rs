@@ -544,6 +544,22 @@ pub(crate) fn transform(
     parse_transform_report(&output.stdout, transformed)
 }
 
+pub(crate) fn run_ui_command(command: &mut Command, cancel: &AtomicBool) -> Result<()> {
+    let output = run_pvm2_command(
+        command,
+        cancel,
+        &|_| {},
+        ProcessLimits {
+            idle: PVM2_IDLE_TIMEOUT,
+            hard: PVM2_HARD_TIMEOUT,
+        },
+    )?;
+    if !output.status.success() {
+        anyhow::bail!("界面保护工具执行失败（自定义 JAR 必须支持 ui-transform/resource-name-transform）：{}\n{}", output.stdout, output.stderr);
+    }
+    Ok(())
+}
+
 fn run_pvm2_command(
     command: &mut Command,
     cancel: &AtomicBool,

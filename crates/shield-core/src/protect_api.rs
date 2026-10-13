@@ -58,6 +58,8 @@ use crate::zipalign::{align_apk_with_native_packaging, NativeLibraryPackaging};
 
 #[derive(Debug, Clone)]
 pub struct ProtectOptions {
+    pub runtime_ui: crate::RuntimeUiProtection,
+    pub ui_packer_path: Option<PathBuf>,
     /// 用户对本次任务明确确认排除的、不受支持的 Native ABI。
     pub excluded_abis: Vec<String>,
     pub input: PathBuf,
@@ -143,6 +145,7 @@ pub fn protect_apk(
     on_progress: impl Fn(ProgressEvent) + Send + 'static,
     cancel: Arc<AtomicBool>,
 ) -> std::result::Result<(), ShieldError> {
+    opts.runtime_ui.validate().map_err(ShieldError::from)?;
     if !opts.input.exists() {
         return Err(ShieldError::FileNotFound(opts.input.display().to_string()));
     }
@@ -184,6 +187,11 @@ pub fn protect_apk(
         custom_runtime_resources,
     )
     .map_err(ShieldError::from)?;
+    if opts.runtime_ui.runtime_enabled() && !runtime_selection.runtime_ui {
+        return Err(ShieldError::from(anyhow::anyhow!(
+            "所选 Runtime 不支持运行时界面保护，请重新构建 resources.zip"
+        )));
+    }
     if opts.xop_pvm2_packer_path.is_some() && !runtime_selection.xop_pvm2 {
         return Err(ShieldError::from(anyhow::anyhow!(
             "所选 Runtime 资源未声明 xop_pvm2=true；拒绝生成无法解释 PVM2 跳板的安装包"
@@ -257,8 +265,22 @@ pub fn protect_apk(
         println!("{}", "========================================".cyan());
     }
 
+    let ui_packer = if opts.runtime_ui.secure_screen || opts.runtime_ui.obfuscate_resource_names {
+        Some(match &opts.ui_packer_path {
+            Some(p) if p.is_file() => crate::utils::strip_unc_prefix(p),
+            Some(p) => {
+                return Err(preflight(anyhow::anyhow!(
+                    "界面保护 Packer 不存在：{}",
+                    p.display()
+                )))
+            }
+            None => crate::utils::find_ui_packer().map_err(missing_tool)?,
+        })
+    } else {
+        None
+    };
     let java_info = ensure_java_runtime().map_err(missing_tool)?;
-    if opts.xop_pvm2_packer_path.is_some()
+    if (opts.xop_pvm2_packer_path.is_some() || ui_packer.is_some())
         && java_info.major_version.unwrap_or(0) < XOP_PVM2_MIN_JAVA_MAJOR_VERSION
     {
         return Err(ShieldError::from(anyhow::anyhow!(
@@ -345,7 +367,30 @@ pub fn protect_apk(
         opts.environment_policy,
     )
     .map_err(ShieldError::from)?;
+    crate::runtime_ui::write_manifest(&apk_dir, &opts.runtime_ui).map_err(ShieldError::from)?;
     print_success("Manifest修改完成");
+    if opts.runtime_ui.runtime_enabled() {
+        let message = format!("运行时界面策略：防截图={}，ADB={}，前台环境复查={}；FLAG_SECURE 不阻止视图树读取，ADB 为环境状态", opts.runtime_ui.secure_screen, opts.runtime_ui.adb_policy.as_str(), opts.runtime_ui.runtime_recheck);
+        emit_progress(
+            &on_progress,
+            &cancel,
+            ProgressStep::ModifyManifest,
+            &message,
+        )?;
+        print_success(&message);
+    }
+    if opts.runtime_ui.secure_screen {
+        let message = crate::runtime_ui::rewrite_windows(
+            &java,
+            ui_packer.as_deref().unwrap(),
+            &apk_dir,
+            opts.external_pvm2_dex_dir.as_deref(),
+            &cancel,
+        )
+        .map_err(ShieldError::from)?;
+        emit_progress(&on_progress, &cancel, ProgressStep::ProcessDex, &message)?;
+        print_success(&message);
+    }
 
     emit_progress(
         &on_progress,
@@ -591,6 +636,26 @@ pub fn protect_apk(
         None
     };
 
+    let ui_resource_index = if opts.runtime_ui.obfuscate_resource_names {
+        if resource_transform.is_none() {
+            verify_original_resources(&opts.input, &opts.output).map_err(ShieldError::from)?;
+        }
+        let message = crate::runtime_ui::rewrite_resource_names(
+            &java,
+            ui_packer.as_deref().unwrap(),
+            &opts.input,
+            &opts.output,
+            &opts.runtime_ui.resource_name_keep,
+            &cancel,
+        )
+        .map_err(ShieldError::from)?;
+        emit_progress(&on_progress, &cancel, ProgressStep::Repack, &message)?;
+        print_success(&message);
+        Some(crate::runtime_ui::apk_index(&opts.output).map_err(ShieldError::from)?)
+    } else {
+        None
+    };
+
     let input_size = fs::metadata(&opts.input)
         .map_err(anyhow::Error::from)
         .map_err(ShieldError::from)?
@@ -614,9 +679,16 @@ pub fn protect_apk(
     if let Some(report) = resource_transform.as_ref() {
         crate::protect::xop_pvm2::verify_resource_transform(&opts.input, &opts.output, report)
             .map_err(|err| diagnosed(err, FailureCode::AlignmentFailed))?;
-    } else {
+    } else if ui_resource_index.is_none() {
         verify_original_resources(&opts.input, &opts.output)
             .map_err(|err| diagnosed(err, FailureCode::AlignmentFailed))?;
+    }
+    if let Some(expected) = ui_resource_index {
+        if crate::runtime_ui::apk_index(&opts.output).map_err(ShieldError::from)? != expected {
+            return Err(ShieldError::from(anyhow::anyhow!(
+                "对齐改变了界面保护产物的条目内容"
+            )));
+        }
     }
     verify_in_apk(&opts.output, &injected_runtime).map_err(ShieldError::from)?;
     print_success("APK数据对齐完成");

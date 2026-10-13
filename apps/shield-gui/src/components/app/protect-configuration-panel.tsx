@@ -1,3 +1,5 @@
+import { RuntimeUiSettings } from "@/components/app/runtime-ui-settings";
+import type { RuntimeUiProtection } from "@/lib/tauri";
 import { FolderKey, FolderOpen, Play, Settings2 } from "lucide-react";
 import { AppButton, SelectInput, TextInput } from "@/components/app/common";
 import {
@@ -13,6 +15,7 @@ import { t, tf, type Locale } from "@/lib/i18n";
 import type { CertificateRecord } from "@/lib/tauri";
 
 export function ProtectConfigurationPanel({
+  runtimeUi, onRuntimeUiChange,
   locale,
   disabled,
   startDisabled,
@@ -50,6 +53,8 @@ export function ProtectConfigurationPanel({
   onRestoreRecommended,
   onStart,
 }: {
+  runtimeUi: RuntimeUiProtection;
+  onRuntimeUiChange: (value: RuntimeUiProtection) => void;
   locale: Locale;
   disabled: boolean;
   startDisabled: boolean;
@@ -108,6 +113,7 @@ export function ProtectConfigurationPanel({
               <SheetDescription>{t(locale, "protectSettingsHint")}</SheetDescription>
             </SheetHeader>
             <div className="mt-7 space-y-6">
+              <RuntimeUiSettings value={runtimeUi} onChange={onRuntimeUiChange} locale={locale} disabled={disabled} />
               <SettingSelect label={t(locale, "targetSystem")} value={runtimeMode} onChange={(value) => onRuntimeModeChange(value as RuntimeMode)} hint={runtimeMode === "android_api19" ? t(locale, "runtimeAndroid44Hint") : t(locale, "runtimeStandardHint")} guidance={runtimeModeGuidance}>
                 <option value="standard">{t(locale, "runtimeStandard")}</option>
                 <option value="android_api19">{t(locale, "runtimeAndroid44")}</option>
@@ -196,6 +202,7 @@ export function ProtectConfigurationPanel({
         </Sheet>
       </div>
       <dl className="mt-5 space-y-3 text-sm">
+        <Summary label={locale === "zh" ? "界面与调试保护" : "UI & debugging protection"} value={`${runtimeUi.secure_screen ? "SECURE · " : ""}ADB: ${runtimeUi.adb_policy}${runtimeUi.runtime_recheck ? " · RASP" : ""}${runtimeUi.obfuscate_resource_names ? " · ID names" : ""}`} />
         <Summary label={t(locale, "targetSystem")} value={runtimeMode === "android_api19" ? t(locale, "runtimeAndroid44") : t(locale, "runtimeStandard")} hint={runtimeMode === "android_api19" ? t(locale, "runtimeAndroid44Summary") : t(locale, "runtimeStandardSummary")} guidance={runtimeModeGuidance} />
         <Summary label={t(locale, "environmentPolicy")} value={environmentPolicy === "strict" ? t(locale, "environmentStrict") : t(locale, "environmentCompatible")} hint={environmentPolicy === "strict" ? t(locale, "environmentStrictSummary") : t(locale, "environmentCompatibleSummary")} />
         <Summary label={t(locale, "protectionProfile")} value={t(locale, protectionProfile === "compat" ? "protectionCompat" : protectionProfile === "strict" ? "protectionStrict" : "protectionBalanced")} />

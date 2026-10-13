@@ -21,6 +21,9 @@ pub(crate) struct CliConfig {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ProtectConfig {
+    #[serde(default)]
+    runtime_ui: shield_core::RuntimeUiProtection,
+    ui_packer: Option<PathBuf>,
     input: Option<PathBuf>,
     output: Option<PathBuf>,
     apktool: Option<PathBuf>,
@@ -68,6 +71,12 @@ impl CliConfig {
 
     pub(crate) fn merge_protect(&self, args: ProtectArgs) -> Result<ResolvedProtectArgs> {
         Ok(ResolvedProtectArgs {
+            runtime_ui: args.runtime_ui.resolve(self.protect.runtime_ui.clone())?,
+            ui_packer: args
+                .runtime_ui
+                .ui_packer
+                .clone()
+                .or_else(|| self.protect.ui_packer.clone()),
             excluded_abis: args.exclude_abis,
             input: required_path(args.input.or_else(|| self.protect.input.clone()), "--input")?,
             output: required_path(
@@ -130,6 +139,7 @@ impl CliConfig {
             &mut self.protect.input,
             &mut self.protect.output,
             &mut self.protect.apktool,
+            &mut self.protect.ui_packer,
             &mut self.protect.resources,
             &mut self.protect.apksigner,
             &mut self.sign.input,
@@ -145,6 +155,8 @@ impl CliConfig {
 }
 
 pub(crate) struct ResolvedProtectArgs {
+    pub runtime_ui: shield_core::RuntimeUiProtection,
+    pub ui_packer: Option<PathBuf>,
     pub excluded_abis: Vec<String>,
     pub input: PathBuf,
     pub output: PathBuf,
@@ -224,6 +236,43 @@ fn parse_keystore_type(value: Option<&str>) -> Result<Option<KeystoreTypeArg>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn 界面策略命令行关闭可覆盖配置名单且非法值拒绝() {
+        use clap::Parser;
+        let config: CliConfig = toml::from_str(
+            r#"
+schema_version = 1
+[protect]
+input = "input.apk"
+output = "output.apk"
+[protect.runtime_ui]
+secure_screen = true
+screen_exempt_activities = ["com.example.ShareActivity"]
+adb_policy = "report"
+"#,
+        )
+        .unwrap();
+        let cli = crate::args::Cli::try_parse_from([
+            "shield",
+            "protect",
+            "--secure-screen=false",
+            "--adb-policy",
+            "block",
+        ])
+        .unwrap();
+        let crate::args::Commands::Protect(args) = cli.command else {
+            panic!("命令类型错误")
+        };
+        let options = config.merge_protect(args).unwrap().runtime_ui;
+        assert!(!options.secure_screen);
+        assert!(options.screen_exempt_activities.is_empty());
+        assert_eq!(options.adb_policy, shield_core::AdbPolicy::Block);
+        assert!(
+            crate::args::Cli::try_parse_from(["shield", "protect", "--adb-policy", "allow"])
+                .is_err()
+        );
+    }
+
     #[test]
     fn 排除架构参数仅对本次命令有效() {
         use clap::Parser;

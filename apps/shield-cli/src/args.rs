@@ -168,6 +168,8 @@ pub(crate) struct ProtectIosArgs {
 
 #[derive(Args, Default)]
 pub struct ProtectAabArgs {
+    #[command(flatten)]
+    pub runtime_ui: RuntimeUiArgs,
     #[arg(short, long, value_name = "AAB")]
     pub input: PathBuf,
     #[arg(short, long, value_name = "AAB")]
@@ -334,6 +336,8 @@ pub(crate) struct ProtectXopArgs {
 
 #[derive(Args, Default)]
 pub(crate) struct ProtectArgs {
+    #[command(flatten)]
+    pub runtime_ui: RuntimeUiArgs,
     /// 明确排除不需要且不受支持的 ABI（逗号分隔），仅对本次任务有效。
     #[arg(long, value_delimiter = ',')]
     pub exclude_abis: Vec<String>,
@@ -401,4 +405,77 @@ pub(crate) struct SignArgs {
     /// 每行输出一个 JSON 事件。
     #[arg(long)]
     pub json: bool,
+}
+
+/// APK/AAB 共用界面保护参数；Option 保留命令行覆盖配置文件的语义。
+#[derive(Args, Default)]
+pub struct RuntimeUiArgs {
+    /// 防止受保护窗口被系统截图；不阻止视图树读取。
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub secure_screen: Option<bool>,
+    /// 防截图例外，使用完整 Activity 类名；逗号分隔。
+    #[arg(long, value_delimiter = ',')]
+    pub screen_exempt_activities: Option<Vec<String>>,
+    /// 调试环境策略：off、report、block；block 对未知状态也拒绝运行。
+    #[arg(long)]
+    pub adb_policy: Option<shield_core::AdbPolicy>,
+    /// 在应用前台定期复查已有反调试/Root 策略。
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub runtime_recheck: Option<bool>,
+    /// 保守混淆可安全改名的资源 id 条目（暂仅 APK）。
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub obfuscate_resource_names: Option<bool>,
+    /// 资源条目保留名；逗号分隔。
+    #[arg(long, value_delimiter = ',')]
+    pub resource_name_keep: Option<Vec<String>>,
+    /// 界面/资源变换器 JAR；默认查找随包分发的 xop-pvm2-packer.jar。
+    #[arg(long, value_name = "JAR")]
+    pub ui_packer: Option<PathBuf>,
+}
+
+impl RuntimeUiArgs {
+    pub fn resolve(
+        &self,
+        mut base: shield_core::RuntimeUiProtection,
+    ) -> anyhow::Result<shield_core::RuntimeUiProtection> {
+        if let Some(v) = self.secure_screen {
+            base.secure_screen = v;
+            if !v {
+                base.screen_exempt_activities.clear();
+            }
+        }
+        if let Some(v) = &self.screen_exempt_activities {
+            base.screen_exempt_activities = v.clone();
+        }
+        if let Some(v) = self.adb_policy {
+            base.adb_policy = v;
+        }
+        if let Some(v) = self.runtime_recheck {
+            base.runtime_recheck = v;
+        }
+        if let Some(v) = self.obfuscate_resource_names {
+            base.obfuscate_resource_names = v;
+            if !v {
+                base.resource_name_keep.clear();
+            }
+        }
+        if let Some(v) = &self.resource_name_keep {
+            base.resource_name_keep = v.clone();
+        }
+        base.validate()?;
+        Ok(base)
+    }
+
+    #[allow(dead_code)] // GUI 通过库入口使用，CLI 二进制不调用。
+    pub fn from_options(v: shield_core::RuntimeUiProtection, ui_packer: Option<PathBuf>) -> Self {
+        Self {
+            secure_screen: Some(v.secure_screen),
+            screen_exempt_activities: Some(v.screen_exempt_activities),
+            adb_policy: Some(v.adb_policy),
+            runtime_recheck: Some(v.runtime_recheck),
+            obfuscate_resource_names: Some(v.obfuscate_resource_names),
+            resource_name_keep: Some(v.resource_name_keep),
+            ui_packer,
+        }
+    }
 }

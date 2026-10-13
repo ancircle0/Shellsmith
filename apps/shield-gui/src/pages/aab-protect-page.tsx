@@ -1,3 +1,5 @@
+import { RuntimeUiSettings } from "@/components/app/runtime-ui-settings";
+import { defaultRuntimeUi } from "@/lib/tauri";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FolderOpen, RotateCcw, Square } from "lucide-react";
@@ -60,6 +62,7 @@ export function AabProtectPage({
   const [allowUploadCertBinding, setAllowUploadCertBinding] = useState(true);
   const [playDeliveryAdapter, setPlayDeliveryAdapter] = useState(false);
   const [generateApks, setGenerateApks] = useState(true);
+  const [runtimeUi, setRuntimeUi] = useState(defaultRuntimeUi);
   const [profile, setProfile] = useState<"balanced" | "strict">("strict");
   const [prefixesText, setPrefixesText] = useState("");
   const [currentStep, setCurrentStep] = useState("");
@@ -202,6 +205,7 @@ export function AabProtectPage({
         runtimeCertSha256: allowUploadCertBinding ? null : runtimeCertSha256.trim(),
         allowUploadCertBinding,
         playDeliveryAdapter,
+        runtimeUi,
         environmentPolicy: "compatible",
         protectionProfile: profile,
         aiResistance: profile === "strict" ? "high" : "balanced",
@@ -300,6 +304,7 @@ export function AabProtectPage({
               <aside className="rounded-[14px] border bg-card p-5">
                 <h2 className="text-base font-semibold">{t(locale, "aabProtectionPlan")}</h2>
                 <div className="mt-5 space-y-5">
+                  <RuntimeUiSettings value={runtimeUi} onChange={setRuntimeUi} locale={locale} disabled={locked} aab />
                   <Field label={t(locale, "protectionProfile")}>
                     <SelectInput value={profile} disabled={locked} onChange={(event) => setProfile(event.target.value as "balanced" | "strict")}>
                       <option value="strict">{t(locale, "aabStrictProfile")}</option>

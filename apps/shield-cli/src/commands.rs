@@ -41,6 +41,8 @@ pub(crate) fn run_protect(args: ResolvedProtectArgs) -> Result<()> {
     }
 
     let opts = ProtectOptions {
+        runtime_ui: args.runtime_ui,
+        ui_packer_path: args.ui_packer,
         excluded_abis: args.excluded_abis,
         input: args.input,
         output: args.output,
@@ -165,6 +167,13 @@ pub fn run_protect_aab_with_control(
     on_progress: impl Fn(&str, &str) + Send + Sync + 'static,
     cancel: Arc<AtomicBool>,
 ) -> Result<()> {
+    let runtime_ui = args.runtime_ui.resolve(Default::default())?;
+    if runtime_ui.enabled() && matches!(args.engine, ProtectionEngineArg::Xop) {
+        anyhow::bail!("独立 Xop 壳尚不支持运行时界面保护选项");
+    }
+    if runtime_ui.obfuscate_resource_names {
+        anyhow::bail!("资源名称混淆暂仅支持 APK，AAB 跨模块资源名称一致性尚未验证");
+    }
     let on_progress = Arc::new(on_progress);
     on_progress("CheckTools", "检查 AAB、签名和构建工具");
     ensure_aab_not_cancelled(&cancel)?;
@@ -386,6 +395,8 @@ pub fn run_protect_aab_with_control(
     match args.engine {
         ProtectionEngineArg::Mocika => {
             let protect_opts = ProtectOptions {
+                runtime_ui: runtime_ui.clone(),
+                ui_packer_path: args.runtime_ui.ui_packer.clone(),
                 excluded_abis: args.exclude_abis.clone(),
                 input: universal_apk,
                 output: protected_unsigned.clone(),

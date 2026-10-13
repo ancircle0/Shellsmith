@@ -3,7 +3,7 @@
 use std::fs;
 use std::io::{BufRead, BufReader};
 
-/// Frida 注入到目标进程后必然出现在内存映射中的库名特征。
+/// 已知注入库名特征；名称检测可被绕过，不作为不可隐藏的保证。
 const FRIDA_MAP_SIGS: &[&str] = &[
     "frida-agent",
     "frida-gadget",
@@ -12,10 +12,8 @@ const FRIDA_MAP_SIGS: &[&str] = &[
 ];
 
 /// Frida 依赖的 GLib 内部线程名特征。
-/// phantom-frida 等工具重命名了 .so 文件名，但无法重命名 GLib 线程，此处作为补充检测。
+/// 通用 GLib 线程名只进入辅助信号，避免普通应用被误判。
 const FRIDA_THREAD_SIGS: &[&str] = &[
-    "gmain",      // GLib 主循环线程
-    "gdbus",      // D-Bus 通信线程（Frida 进程间通信依赖）
     "pool-frida", // Frida 线程池
     "gum-js-loop",
 ];
@@ -37,12 +35,12 @@ const FRIDA_FILE_SIGS: &[&str] = &[
 /// 仅匹配通用行为特征，不针对特定工具的版本。
 const HOOK_MAP_SIGS: &[&str] = &["xposed", "lsposed", "edxposed", "substrate"];
 
-/// 高置信检测：命中即为确定的分析环境，可以阻断。
+/// 较高置信检测：命中时按既有策略阻断，不能保证完全没有误报。
 ///
-/// 只包含无法被普通应用误触的信号——TracerPid 与 Frida 库映射。
+/// 包含调试器附加和较具体的注入特征；仍需真机回归误报。
 /// `check()` 用于解密前的硬阻断，必须保持在这一档。
 pub fn check() -> bool {
-    check_tracer_pid() || check_frida_maps() || check_frida_threads()
+    check_tracer_pid() || check_frida_maps() || check_frida_threads(FRIDA_THREAD_SIGS)
 }
 
 /// 低置信检测：命中表示可疑，但不作为拒绝启动的依据。
@@ -50,7 +48,10 @@ pub fn check() -> bool {
 /// 端口监听、临时目录残留与 Hook 映射串在部分定制 ROM 与加固测试机上
 /// 可能出现假阳性，因此只上报给调用方记录，由策略层决定是否处置。
 pub fn check_suspect() -> bool {
-    check_frida_ports() || check_frida_files() || check_hook_frameworks()
+    check_frida_ports()
+        || check_frida_files()
+        || check_hook_frameworks()
+        || check_frida_threads(&["gmain", "gdbus"])
 }
 
 /// 检测 ptrace 类调试器（Android Studio / IDA / lldb 等）。
@@ -75,8 +76,7 @@ fn check_tracer_pid() -> bool {
 }
 
 /// 检测 Frida 注入：扫描 /proc/self/maps 中的 Frida 库特征字符串。
-/// Frida 注入后必然将 frida-agent.so / frida-gadget.so 加载进进程地址空间，
-/// 这些映射条目无法对自身进程隐藏。
+/// 仅识别保留已知名称的库映射，不保证发现改名或隐藏映射。
 fn check_frida_maps() -> bool {
     let file = match fs::File::open("/proc/self/maps") {
         Ok(f) => f,
@@ -94,8 +94,8 @@ fn check_frida_maps() -> bool {
 }
 
 /// 辅助检测：遍历 /proc/self/task/*/comm，匹配 Frida 依赖的 GLib 线程名。
-/// 作为 maps 扫描的兜底：覆盖重命名了库文件但无法重命名内部 GLib 线程的变种注入工具。
-fn check_frida_threads() -> bool {
+/// 线程名只能作为特征，不能证明不存在或必然存在注入。
+fn check_frida_threads(signatures: &[&str]) -> bool {
     let task_dir = match fs::read_dir("/proc/self/task") {
         Ok(d) => d,
         Err(_) => return false,
@@ -106,7 +106,7 @@ fn check_frida_threads() -> bool {
             continue;
         };
         let comm = comm.trim();
-        for sig in FRIDA_THREAD_SIGS {
+        for sig in signatures {
             if comm.contains(sig) {
                 return true;
             }
@@ -173,6 +173,12 @@ fn check_hook_frameworks() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn 通用_glib_线程名不得进入直接阻断列表() {
+        assert!(!FRIDA_THREAD_SIGS.contains(&"gmain"));
+        assert!(!FRIDA_THREAD_SIGS.contains(&"gdbus"));
+    }
 
     #[test]
     fn 识别_frida_默认监听端口() {

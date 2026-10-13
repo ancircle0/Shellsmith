@@ -113,6 +113,7 @@ public class StubApp extends Application {
         transferCallbacksTo(realApp);
         replaceAppReferences(realApp);
         ARouterCompat.prepareARouterRouteMap(this);
+        MocikaUi.install(realApp);
         realApp.onCreate();
         if (android.os.Build.VERSION.SDK_INT >= 28
                 && getBaseContext().getClassLoader() instanceof DeferredPayloadClassLoader) {

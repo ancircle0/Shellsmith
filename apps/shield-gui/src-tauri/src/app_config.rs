@@ -70,6 +70,7 @@ impl ApplicationSharingConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct ProtectDefaults {
+    pub runtime_ui: shield_core::RuntimeUiProtection,
     pub runtime_mode: String,
     pub environment_policy: String,
     pub protection_profile: String,
@@ -85,6 +86,7 @@ pub(crate) struct ProtectDefaults {
 impl Default for ProtectDefaults {
     fn default() -> Self {
         Self {
+            runtime_ui: Default::default(),
             runtime_mode: "standard".to_string(),
             environment_policy: "compatible".to_string(),
             protection_profile: "balanced".to_string(),
@@ -228,6 +230,7 @@ pub(crate) fn normalize_theme_mode(value: &str) -> String {
 
 pub(crate) fn normalize_protect_defaults(value: &ProtectDefaults) -> ProtectDefaults {
     ProtectDefaults {
+        runtime_ui: value.runtime_ui.clone(),
         runtime_mode: match value.runtime_mode.as_str() {
             "android_api19" => "android_api19",
             _ => "standard",
@@ -435,6 +438,7 @@ theme_mode = "system"
     #[test]
     fn 非法加固默认项会被规范化() {
         let normalized = normalize_protect_defaults(&ProtectDefaults {
+            runtime_ui: Default::default(),
             runtime_mode: "unknown".to_string(),
             environment_policy: "unknown".to_string(),
             protection_profile: "unknown".to_string(),

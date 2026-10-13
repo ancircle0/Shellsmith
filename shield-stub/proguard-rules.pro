@@ -68,3 +68,6 @@
 
 # 保留行号（便于 crash 定位），不保留 SourceFile（隐藏 .java 文件名）
 -keepattributes LineNumberTable
+
+# DEX 调用改写的固定桥，框架回调保留以兼容旧 Android 接口。
+-keep class dev.mocika.shield.loader.MocikaUi { public *; }

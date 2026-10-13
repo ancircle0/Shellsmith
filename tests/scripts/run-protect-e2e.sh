@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FIXTURE="$ROOT/tests/fixtures/android-smoke-app"
 PACKAGE_NAME="dev.mocika.shield.smoke"
 COMPONENT="$PACKAGE_NAME/.MainActivity"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/mocika-protect-e2e.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+trap 'echo "端到端检查失败，第 $LINENO 行：$BASH_COMMAND；产物保留在 $WORK" >&2' ERR
+trap 'status=$?; if [[ "$status" == 0 ]]; then rm -rf "$WORK"; fi' EXIT
 
 for command in java keytool cargo unzip; do
   command -v "$command" >/dev/null || { echo "缺少命令: $command" >&2; exit 1; }
@@ -64,6 +65,7 @@ PROTECT_COMMAND=(
   "$ROOT/target/release/shield" protect
   --input "$SIGNED"
   --output "$PROTECTED"
+  --resources "$ROOT/shield-stub/build/outputs/resources/resources.zip"
 )
 if [[ "${PVM2_STRICT_TEST:-0}" == "1" ]]; then
   PROTECT_COMMAND+=(

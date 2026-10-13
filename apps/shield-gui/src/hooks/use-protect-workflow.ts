@@ -14,6 +14,7 @@ import { getProtectJavaError } from "@/lib/java";
 import { notifyError, notifySuccess } from "@/lib/notify";
 import {
   api,
+  defaultRuntimeUi,
   onTauriEvent,
   openFileDialog,
   type ApkCheckResult,
@@ -55,6 +56,7 @@ export function useProtectWorkflow({
   const [error, setError] = useState("");
   const [precheck, setPrecheck] = useState("");
   const [preflight, setPreflight] = useState<ApkCheckResult | null>(null);
+  const [runtimeUi, setRuntimeUi] = useState(defaults.runtime_ui ?? defaultRuntimeUi);
   const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>(defaults.runtime_mode);
   const [environmentPolicy, setEnvironmentPolicy] = useState<EnvironmentPolicy>(defaults.environment_policy);
   const [protectionProfile, setProtectionProfile] = useState<ProtectionProfile>(defaults.protection_profile);
@@ -92,6 +94,7 @@ export function useProtectWorkflow({
 
   useEffect(() => {
     if (taskLocked.current) return;
+    setRuntimeUi(defaults.runtime_ui ?? defaultRuntimeUi);
     setRuntimeMode(defaults.runtime_mode);
     setEnvironmentPolicy(defaults.environment_policy);
     setProtectionProfile(defaults.protection_profile);
@@ -312,6 +315,7 @@ export function useProtectWorkflow({
         autoSignReady && certificate ? certificate.id : null,
         exclusions,
         sharingChoice,
+        runtimeUi,
       );
       setFinishedAt(Date.now());
       setState("done");
@@ -327,7 +331,7 @@ export function useProtectWorkflow({
         setState("idle");
       }
     }
-  }, [aiResistance, autoSignReady, buildInfo, certificate, environmentPolicy, fixedOutputDirectory, input, locale, output, outputDirectory, outputDirectoryMode, outputFilenameError, precheck, preflight, protectionProfile, runtimeMode, sharing, xopPvm2PackerPath, xopTrueVmpPrefixes]);
+  }, [aiResistance, autoSignReady, buildInfo, certificate, environmentPolicy, fixedOutputDirectory, input, locale, output, outputDirectory, outputDirectoryMode, outputFilenameError, precheck, preflight, protectionProfile, runtimeMode, runtimeUi, sharing, xopPvm2PackerPath, xopTrueVmpPrefixes]);
 
   const cancel = useCallback(async () => {
     await api.cancelProtect().catch(() => undefined);
@@ -360,6 +364,7 @@ export function useProtectWorkflow({
     runtimeMode,
     setRuntimeMode,
     environmentPolicy,
+    runtimeUi, setRuntimeUi,
     setEnvironmentPolicy,
     protectionProfile,
     setProtectionProfile,
